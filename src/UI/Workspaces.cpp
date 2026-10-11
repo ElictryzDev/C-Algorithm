@@ -180,19 +180,103 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
         pm.statusMessage = "Kablo baglantisi koparildi (Alt + Tik).";
     }
 
-    // Dugumleri Ciz ve Surukle
+    // ── Etkilesim Durumlari ──────────────────────────────────────────────
     static int draggingId = -1;
     static ImVec2 dragOffset = { 0, 0 };
+
+    // Pin Baglanti Surukleme (Wiring State)
+    static int wireDragFromNode = -1;
+    static int wireDragFromPin = -1;
+    static ImVec2 wireDragStartPos = { 0, 0 };
+
+    // Coklu Secim (Marquee Box Selection)
+    static bool isBoxSelecting = false;
+    static ImVec2 boxSelectStart = { 0, 0 };
+    static std::set<int> multiSelectedNodes;
+
+    // Sag Tik Menusu Icin Tiklanan Nokta
+    static ImVec2 contextMenuPos = { 0, 0 };
+
+    // ── 1. Dugumlerin ve Pinlerin Cizimi ─────────────────────────────────
+    int hoveredPinNode = -1;
+    int hoveredPinIdx = -1;
 
     for (auto& n : pm.nodes) {
         ImVec2 pMin(origin.x + n.x, origin.y + n.y);
         ImVec2 pMax(pMin.x + n.width, pMin.y + n.height);
 
-        bool isHovered = (mousePos.x >= pMin.x && mousePos.x <= pMax.x && mousePos.y >= pMin.y && mousePos.y <= pMax.y);
-        bool isSelected = (selectedNodeId == n.id);
+        bool isNodeHovered = (mousePos.x >= pMin.x && mousePos.x <= pMax.x && mousePos.y >= pMin.y && mousePos.y <= pMax.y);
+        bool isSelected = (selectedNodeId == n.id || multiSelectedNodes.count(n.id) > 0);
 
-        if (ImGui::IsMouseClicked(0) && isHovered) {
+        // Dugum Karti Govdesi
+        drawList->AddRectFilled(pMin, pMax, IM_COL32(20, 24, 30, 255), 8.0f);
+        ImU32 borderCol = isSelected ? IM_COL32(0, 210, 255, 255) : IM_COL32(45, 52, 64, 255);
+        drawList->AddRect(pMin, pMax, borderCol, 8.0f, 0, isSelected ? 2.5f : 1.2f);
+
+        // Baslik Seridi
+        ImU32 headCol = (n.kind == NodeKind::Start)           ? IM_COL32(28, 75, 45, 255) :
+                        (n.kind == NodeKind::End)             ? IM_COL32(85, 30, 30, 255) :
+                        (n.kind == NodeKind::VariableDeclare) ? IM_COL32(25, 58, 80, 255) :
+                        (n.kind == NodeKind::BranchIf)        ? IM_COL32(120, 65, 25, 255) :
+                        (n.kind == NodeKind::LoopWhile || n.kind == NodeKind::LoopDoWhile || n.kind == NodeKind::LoopFor) ? IM_COL32(75, 35, 95, 255) :
+                        IM_COL32(35, 42, 52, 255);
+
+        drawList->AddRectFilled(pMin, ImVec2(pMax.x, pMin.y + 26.0f), headCol, 8.0f, ImDrawFlags_RoundCornersTop);
+        drawList->AddText(ImVec2(pMin.x + 12, pMin.y + 5), IM_COL32(245, 250, 255, 255), n.title.c_str());
+
+        // Pinleri Ciz ve Pin Uzerinde Olup Olmadigini (Hit-Test) Kontrol Et
+        for (size_t pIdx = 0; pIdx < n.pins.size(); pIdx++) {
+            const auto& pin = n.pins[pIdx];
+            ImVec2 pinPos(pMin.x + pin.relX, pMin.y + pin.relY);
+
+            float distToPin = hypotf(mousePos.x - pinPos.x, mousePos.y - pinPos.y);
+            bool isPinHovered = (distToPin <= 10.0f);
+
+            if (isPinHovered) {
+                hoveredPinNode = n.id;
+                hoveredPinIdx = (int)pIdx;
+            }
+
+            ImU32 pCol = (pin.type == PinType::ExecIn || pin.type == PinType::ExecOut) ? IM_COL32(0, 200, 232, 255) : IM_COL32(63, 185, 80, 255);
+            if (isPinHovered) pCol = IM_COL32(255, 255, 100, 255);
+
+            if (pin.shape == PinShape::Diamond) {
+                float s = 6.0f;
+                drawList->AddQuadFilled(
+                    ImVec2(pinPos.x, pinPos.y - s),
+                    ImVec2(pinPos.x + s, pinPos.y),
+                    ImVec2(pinPos.x, pinPos.y + s),
+                    ImVec2(pinPos.x - s, pinPos.y),
+                    isPinHovered ? IM_COL32(255, 255, 100, 255) : IM_COL32(255, 165, 0, 255)
+                );
+            } else if (pin.shape == PinShape::Triangle) {
+                float s = 6.0f;
+                drawList->AddTriangleFilled(
+                    ImVec2(pinPos.x - s, pinPos.y - s),
+                    ImVec2(pinPos.x + s, pinPos.y),
+                    ImVec2(pinPos.x - s, pinPos.y + s),
+                    pCol
+                );
+            } else {
+                drawList->AddCircleFilled(pinPos, 6.0f, pCol);
+            }
+
+            drawList->AddCircle(pinPos, 7.0f, IM_COL32(255, 255, 255, isPinHovered ? 255 : 120));
+
+            // Pin Ismi (Temiz hizalanmis)
+            if (pin.type == PinType::ExecIn) {
+                drawList->AddText(ImVec2(pinPos.x + 12, pinPos.y - 8), IM_COL32(180, 190, 205, 255), pin.name.c_str());
+            } else {
+                ImVec2 textSize = ImGui::CalcTextSize(pin.name.c_str());
+                drawList->AddText(ImVec2(pinPos.x - textSize.x - 12, pinPos.y - 8), IM_COL32(180, 190, 205, 255), pin.name.c_str());
+            }
+        }
+
+        // Dugum Surukleme & Secim Tetikleyicisi (Yalnizca pine basilmiyorsa!)
+        if (ImGui::IsMouseClicked(0) && isNodeHovered && hoveredPinNode == -1) {
             selectedNodeId = n.id;
+            multiSelectedNodes.clear();
+            multiSelectedNodes.insert(n.id);
             draggingId = n.id;
             dragOffset = ImVec2(mousePos.x - n.x, mousePos.y - n.y);
         }
@@ -205,78 +289,119 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
                 draggingId = -1;
             }
         }
+    }
 
-        // Dugum Karti Govdesi
-        drawList->AddRectFilled(pMin, pMax, IM_COL32(22, 27, 34, 255), 8.0f);
-        ImU32 borderCol = isSelected ? IM_COL32(0, 200, 232, 255) : IM_COL32(48, 54, 61, 255);
-        drawList->AddRect(pMin, pMax, borderCol, 8.0f, 0, isSelected ? 2.5f : 1.2f);
+    // ── 2. Pinden Canli Kablo Cekme Etkilesimi ─────────────────────────────
+    if (ImGui::IsMouseClicked(0) && hoveredPinNode > 0) {
+        FlowNode* fn = pm.GetNode(hoveredPinNode);
+        if (fn && hoveredPinIdx < (int)fn->pins.size()) {
+            wireDragFromNode = hoveredPinNode;
+            wireDragFromPin = hoveredPinIdx;
+            wireDragStartPos = ImVec2(origin.x + fn->x + fn->pins[hoveredPinIdx].relX, 
+                                      origin.y + fn->y + fn->pins[hoveredPinIdx].relY);
+        }
+    }
 
-        // Baslik Seridi
-        ImU32 headCol = (n.kind == NodeKind::Start)           ? IM_COL32(25, 65, 40, 255) :
-                        (n.kind == NodeKind::End)             ? IM_COL32(75, 25, 25, 255) :
-                        (n.kind == NodeKind::VariableDeclare) ? IM_COL32(20, 50, 70, 255) :
-                        (n.kind == NodeKind::BranchIf)        ? IM_COL32(110, 60, 20, 255) :  // Turuncu/Kehribar Kosul
-                        (n.kind == NodeKind::LoopWhile || n.kind == NodeKind::LoopDoWhile || n.kind == NodeKind::LoopFor) ? IM_COL32(70, 30, 90, 255) : // Mor Donguler
-                        IM_COL32(33, 38, 45, 255);
+    if (wireDragFromNode > 0) {
+        if (ImGui::IsMouseDown(0)) {
+            // Farenin ucuna dogru dinamik kablo ciz
+            float dx = fabsf(mousePos.x - wireDragStartPos.x) * 0.5f;
+            if (dx < 50.0f) dx = 50.0f;
+            ImVec2 c1(wireDragStartPos.x + dx, wireDragStartPos.y);
+            ImVec2 c2(mousePos.x - dx, mousePos.y);
 
-        drawList->AddRectFilled(pMin, ImVec2(pMax.x, pMin.y + 26.0f), headCol, 8.0f, ImDrawFlags_RoundCornersTop);
-        drawList->AddText(ImVec2(pMin.x + 10, pMin.y + 6), IM_COL32(240, 246, 252, 255), n.title.c_str());
+            drawList->AddBezierCubic(wireDragStartPos, c1, c2, mousePos, IM_COL32(255, 220, 50, 100), 5.0f);
+            drawList->AddBezierCubic(wireDragStartPos, c1, c2, mousePos, IM_COL32(255, 255, 100, 255), 2.5f);
+            drawList->AddCircleFilled(mousePos, 5.0f, IM_COL32(255, 255, 100, 255));
+        } else {
+            // Fare birakildi! Hedef pin var mi kontrol et
+            if (hoveredPinNode > 0 && hoveredPinNode != wireDragFromNode) {
+                pm.ConnectPins(wireDragFromNode, wireDragFromPin, hoveredPinNode, hoveredPinIdx);
+            }
+            wireDragFromNode = -1;
+            wireDragFromPin = -1;
+        }
+    }
 
-        // Icerik Ozeti
-        if (n.kind == NodeKind::VariableDeclare) {
-            std::string desc = TypeKindToString(n.varType) + std::string(" ") + n.targetVar + " = " + n.expr;
-            drawList->AddText(ImVec2(pMin.x + 16, pMin.y + 40), IM_COL32(0, 200, 232, 255), desc.c_str());
-        } else if (n.kind == NodeKind::Print) {
-            drawList->AddText(ImVec2(pMin.x + 16, pMin.y + 40), IM_COL32(100, 220, 120, 255), ("cout << \"" + n.ioText + "\"").c_str());
-        } else if (n.kind == NodeKind::Assign) {
-            drawList->AddText(ImVec2(pMin.x + 16, pMin.y + 40), IM_COL32(220, 180, 80, 255), (n.targetVar + " = " + n.expr).c_str());
-        } else if (n.kind == NodeKind::BranchIf) {
-            drawList->AddText(ImVec2(pMin.x + 16, pMin.y + 40), IM_COL32(255, 170, 50, 255), ("Eger: " + n.conditionExpr).c_str());
-        } else if (n.kind == NodeKind::LoopWhile) {
-            drawList->AddText(ImVec2(pMin.x + 16, pMin.y + 40), IM_COL32(180, 120, 240, 255), ("While: " + n.conditionExpr).c_str());
-        } else if (n.kind == NodeKind::LoopDoWhile) {
-            drawList->AddText(ImVec2(pMin.x + 16, pMin.y + 40), IM_COL32(180, 120, 240, 255), ("Do-While: " + n.conditionExpr).c_str());
-        } else if (n.kind == NodeKind::LoopFor) {
-            drawList->AddText(ImVec2(pMin.x + 16, pMin.y + 40), IM_COL32(180, 120, 240, 255), ("For: " + n.loopInit + "; ..").c_str());
+    // ── 3. Bos Alan Tiklamasi: Kutu Secimi (Marquee Selection) ────────────
+    bool isCanvasHovered = ImGui::IsWindowHovered();
+    if (ImGui::IsMouseClicked(0) && isCanvasHovered && draggingId == -1 && wireDragFromNode == -1 && hoveredPinNode == -1) {
+        // Herhangi bir dugume tiklanmadiysa kutu secimini baslat
+        isBoxSelecting = true;
+        boxSelectStart = mousePos;
+        multiSelectedNodes.clear();
+        selectedNodeId = 0;
+    }
+
+    if (isBoxSelecting) {
+        if (ImGui::IsMouseDown(0)) {
+            ImVec2 bMin(fminf(boxSelectStart.x, mousePos.x), fminf(boxSelectStart.y, mousePos.y));
+            ImVec2 bMax(fmaxf(boxSelectStart.x, mousePos.x), fmaxf(boxSelectStart.y, mousePos.y));
+
+            drawList->AddRectFilled(bMin, bMax, IM_COL32(0, 160, 255, 35));
+            drawList->AddRect(bMin, bMax, IM_COL32(0, 180, 255, 200), 0.0f, 0, 1.5f);
+
+            // Kutunun icindeki dugumleri sec
+            for (const auto& n : pm.nodes) {
+                float nLeft = origin.x + n.x;
+                float nRight = nLeft + n.width;
+                float nTop = origin.y + n.y;
+                float nBottom = nTop + n.height;
+
+                if (nRight >= bMin.x && nLeft <= bMax.x && nBottom >= bMin.y && nTop <= bMax.y) {
+                    multiSelectedNodes.insert(n.id);
+                    selectedNodeId = n.id;
+                }
+            }
+        } else {
+            isBoxSelecting = false;
+        }
+    }
+
+    // ── 4. Sag Tik: DUGUM EKLEME BAGLAM MENUSU (Context Spawn Menu) ───────
+    if (ImGui::IsMouseClicked(1) && isCanvasHovered) {
+        contextMenuPos = ImVec2(mousePos.x - origin.x, mousePos.y - origin.y);
+        ImGui::OpenPopup("NodeSpawnMenu");
+    }
+
+    if (ImGui::BeginPopup("NodeSpawnMenu")) {
+        ImGui::TextColored(ImVec4(0, 0.85f, 1.0f, 1.0f), "Dugum Ekle (Spawn Node)");
+        ImGui::Separator();
+
+        if (ImGui::MenuItem("Event Software Start")) {
+            pm.AddNode(NodeKind::Start, "Event Software Start", contextMenuPos.x, contextMenuPos.y);
+        }
+        if (ImGui::MenuItem("Variable Declare (Tanimla)")) {
+            pm.AddNode(NodeKind::VariableDeclare, "Variable Declare", contextMenuPos.x, contextMenuPos.y);
+        }
+        if (ImGui::MenuItem("Assign Value (Deger Ata)")) {
+            pm.AddNode(NodeKind::Assign, "Assign Value", contextMenuPos.x, contextMenuPos.y);
+        }
+        if (ImGui::MenuItem("Print Output (cout)")) {
+            pm.AddNode(NodeKind::Print, "Print Output", contextMenuPos.x, contextMenuPos.y);
+        }
+        if (ImGui::MenuItem("Input Read (cin)")) {
+            pm.AddNode(NodeKind::Input, "Input Read", contextMenuPos.x, contextMenuPos.y);
+        }
+        ImGui::Separator();
+        if (ImGui::MenuItem("Branch Condition (If/Else)")) {
+            pm.AddNode(NodeKind::BranchIf, "Branch (If/Else)", contextMenuPos.x, contextMenuPos.y);
+        }
+        if (ImGui::MenuItem("While Loop")) {
+            pm.AddNode(NodeKind::LoopWhile, "While Loop", contextMenuPos.x, contextMenuPos.y);
+        }
+        if (ImGui::MenuItem("Do-While Loop")) {
+            pm.AddNode(NodeKind::LoopDoWhile, "Do-While Loop", contextMenuPos.x, contextMenuPos.y);
+        }
+        if (ImGui::MenuItem("For Loop")) {
+            pm.AddNode(NodeKind::LoopFor, "For Loop", contextMenuPos.x, contextMenuPos.y);
+        }
+        ImGui::Separator();
+        if (ImGui::MenuItem("Program Return (0)")) {
+            pm.AddNode(NodeKind::End, "Program Return (0)", contextMenuPos.x, contextMenuPos.y);
         }
 
-        // Pinleri Ciz
-        for (const auto& pin : n.pins) {
-            ImVec2 pinPos(pMin.x + pin.relX, pMin.y + pin.relY);
-            ImU32 pCol = (pin.type == PinType::ExecIn || pin.type == PinType::ExecOut) ? IM_COL32(0, 200, 232, 255) : IM_COL32(63, 185, 80, 255);
-            
-            if (pin.shape == PinShape::Diamond) {
-                // Elmas / Kosul pini (True / False)
-                float s = 5.0f;
-                drawList->AddQuadFilled(
-                    ImVec2(pinPos.x, pinPos.y - s),
-                    ImVec2(pinPos.x + s, pinPos.y),
-                    ImVec2(pinPos.x, pinPos.y + s),
-                    ImVec2(pinPos.x - s, pinPos.y),
-                    IM_COL32(255, 165, 0, 255)
-                );
-            } else if (pin.shape == PinShape::Triangle) {
-                // Akis Ucgeni (Exec In / Out)
-                float s = 5.0f;
-                drawList->AddTriangleFilled(
-                    ImVec2(pinPos.x - s, pinPos.y - s),
-                    ImVec2(pinPos.x + s, pinPos.y),
-                    ImVec2(pinPos.x - s, pinPos.y + s),
-                    pCol
-                );
-            } else {
-                // Daire
-                drawList->AddCircleFilled(pinPos, 5.0f, pCol);
-            }
-
-            drawList->AddCircle(pinPos, 6.0f, IM_COL32(255, 255, 255, 150));
-
-            if (pin.type == PinType::ExecIn) {
-                drawList->AddText(ImVec2(pinPos.x + 8, pinPos.y - 7), IM_COL32(139, 148, 158, 255), pin.name.c_str());
-            } else {
-                drawList->AddText(ImVec2(pinPos.x - 70, pinPos.y - 7), IM_COL32(139, 148, 158, 255), pin.name.c_str());
-            }
-        }
+        ImGui::EndPopup();
     }
 
     ImGui::EndChild();

@@ -1,6 +1,7 @@
 #include <windows.h>
 #include <d3d11.h>
 #include <tchar.h>
+#include <filesystem>
 
 #include "Core/ProjectManager.hpp"
 #include "UI/Workspaces.hpp"
@@ -83,6 +84,18 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     SetupOLEDDarkTheme();
 
+    // ── Kristal Netliginde Turkce Destekli Segoe UI Font Yukle ───────────────
+    static const ImWchar turkishRanges[] = {
+        0x0020, 0x00FF, // Basic Latin + Latin Supplement
+        0x0100, 0x017F, // Latin Extended-A (ç, ğ, ı, ö, ş, ü, Ç, Ğ, İ, Ö, Ş, Ü)
+        0,
+    };
+    if (std::filesystem::exists("C:\\Windows\\Fonts\\segoeui.ttf")) {
+        io.Fonts->AddFontFromFileTTF("C:\\Windows\\Fonts\\segoeui.ttf", 17.0f, nullptr, turkishRanges);
+    } else {
+        io.Fonts->AddFontDefault();
+    }
+
     ImGui_ImplWin32_Init(hwnd);
     ImGui_ImplDX11_Init(g_pd3dDevice, g_pd3dDeviceContext);
 
@@ -118,14 +131,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         } else {
             // ── 2. PROJE AÇIKSA: TAM TEŞEKKÜLLÜ IDE ÇALIŞIR ──────────────
             if (ImGui::BeginMenuBar()) {
-                ImGui::TextColored(ImVec4(0, 0.85f, 1.0f, 1.0f), "⚡ C-ALGORITHM IDE");
+                ImGui::TextColored(ImVec4(0, 0.85f, 1.0f, 1.0f), "[C-ALGORITHM IDE]");
                 ImGui::SameLine(0, 20);
                 ImGui::TextColored(ImVec4(0.9f, 0.9f, 0.9f, 1.0f), "|  Proje: %s", pm.projectName.c_str());
 
                 ImGui::SameLine(0, 30);
-                if (ImGui::Button("💾 Kaydet (Save)")) { pm.SaveProject(); }
+                if (ImGui::Button("Kaydet (Save)")) { pm.SaveProject(); }
                 ImGui::SameLine();
-                if (ImGui::Button("❌ Kapat")) { pm.CloseProject(); }
+                if (ImGui::Button("Kapat (Close)")) { pm.CloseProject(); }
 
                 ImGui::SameLine(ImGui::GetWindowWidth() - 350);
                 ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "%s", pm.statusMessage.c_str());
@@ -137,19 +150,19 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
             ImGui::BeginChild("WorkspacesContainer", mainAreaSize, false);
             if (ImGui::BeginTabBar("MainTabs", ImGuiTabBarFlags_None)) {
-                if (ImGui::BeginTabItem("⚡ Akis Semasi Grafigi")) {
+                if (ImGui::BeginTabItem("Akis Semasi Grafigi")) {
                     RenderFlowGraphWorkspace(pm, selectedNodeId);
                     ImGui::EndTabItem();
                 }
-                if (ImGui::BeginTabItem("🧠 Data Structure Advisor")) {
+                if (ImGui::BeginTabItem("Data Structure Advisor")) {
                     RenderAdvisorWorkspace(pm);
                     ImGui::EndTabItem();
                 }
-                if (ImGui::BeginTabItem("💻 Canli C++ Kodu")) {
+                if (ImGui::BeginTabItem("Canli C++ Kodu")) {
                     RenderCodegenWorkspace(pm);
                     ImGui::EndTabItem();
                 }
-                if (ImGui::BeginTabItem("⚙️ Ayarlar (Settings)")) {
+                if (ImGui::BeginTabItem("Ayarlar (Settings)")) {
                     RenderSettingsWorkspace(pm);
                     ImGui::EndTabItem();
                 }

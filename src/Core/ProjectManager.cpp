@@ -35,20 +35,20 @@ bool ProjectManager::CreateNewProject(const std::string& name, const std::string
 
 void ProjectManager::SetupDefaultFlow() {
     // 1. Program Baslangici (main())
-    FlowNode* nStart = AddNode(NodeKind::Start, "Program Baslangici", 60.0f, 100.0f);
+    FlowNode* nStart = AddNode(NodeKind::Start, "Event Software Start", 60.0f, 100.0f);
 
     // 2. Degisken Tanimla (uint8_t can_puani = 100)
-    FlowNode* nVar = AddNode(NodeKind::VariableDeclare, "Degisken: can_puani", 320.0f, 100.0f);
+    FlowNode* nVar = AddNode(NodeKind::VariableDeclare, "Variable: can_puani", 340.0f, 100.0f);
     nVar->targetVar = "can_puani";
     nVar->varType = TypeKind::UInt8;
     nVar->expr = "100";
 
     // 3. Ekrana Yaz (std::cout)
-    FlowNode* nPrint = AddNode(NodeKind::Print, "Ekrana Yazdir", 580.0f, 100.0f);
+    FlowNode* nPrint = AddNode(NodeKind::Print, "Print Output", 620.0f, 100.0f);
     nPrint->ioText = "Sistem Aktif! Mevcut Can: 100";
 
     // 4. Program Sonu
-    FlowNode* nEnd = AddNode(NodeKind::End, "Program Sonu (return 0)", 840.0f, 100.0f);
+    FlowNode* nEnd = AddNode(NodeKind::End, "Program Return (0)", 900.0f, 100.0f);
 
     // Düğümleri Birbirine Bağla
     ConnectPins(nStart->id, 0, nVar->id, 0);
