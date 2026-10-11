@@ -99,8 +99,28 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
         pm.AddNode(NodeKind::StructDef, isEn ? "Struct Definition" : "Struct Tanımla", 180, 170);
     }
     ImGui::SameLine();
-    if (ImGui::Button(isEn ? "+ Vector" : "+ Vector")) {
-        pm.AddNode(NodeKind::VectorOp, isEn ? "Vector Operation" : "Vector İşlemi", 210, 190);
+    if (ImGui::Button(isEn ? "+ Data Structures v" : "+ Veri Yapıları v")) {
+        ImGui::OpenPopup("ToolbarDataStructuresPopup");
+    }
+    if (ImGui::BeginPopup("ToolbarDataStructuresPopup")) {
+        ImGui::TextColored(ImVec4(0, 0.85f, 1.0f, 1.0f), isEn ? "Data Structures (Veri Yapilari):" : "Veri Yapıları:");
+        ImGui::Separator();
+        if (ImGui::MenuItem("std::vector (Dinamik Dizi)")) {
+            pm.AddNode(NodeKind::VectorOp, "std::vector", 210, 190);
+        }
+        if (ImGui::MenuItem("std::list (Bağlı Liste)")) {
+            pm.AddNode(NodeKind::ListOp, "std::list", 220, 200);
+        }
+        if (ImGui::MenuItem("std::stack (Yığın - LIFO)")) {
+            pm.AddNode(NodeKind::StackOp, "std::stack", 230, 210);
+        }
+        if (ImGui::MenuItem("std::queue (Kuyruk - FIFO)")) {
+            pm.AddNode(NodeKind::QueueOp, "std::queue", 240, 220);
+        }
+        if (ImGui::MenuItem("Sabit Dizi (std::array / Array)")) {
+            pm.AddNode(NodeKind::ArrayOp, "Array (Dizi)", 250, 230);
+        }
+        ImGui::EndPopup();
     }
     ImGui::SameLine();
     if (ImGui::Button(isEn ? "+ Assign" : "+ Değer Ata")) {
@@ -282,6 +302,10 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
                         (n.kind == NodeKind::VariableDeclare) ? IM_COL32(25, 58, 80, 255) :
                         (n.kind == NodeKind::StructDef)       ? IM_COL32(80, 50, 20, 255) :
                         (n.kind == NodeKind::VectorOp)        ? IM_COL32(20, 70, 85, 255) :
+                        (n.kind == NodeKind::ListOp)          ? IM_COL32(25, 80, 65, 255) :
+                        (n.kind == NodeKind::StackOp)         ? IM_COL32(70, 35, 85, 255) :
+                        (n.kind == NodeKind::QueueOp)         ? IM_COL32(95, 60, 20, 255) :
+                        (n.kind == NodeKind::ArrayOp)         ? IM_COL32(35, 65, 95, 255) :
                         (n.kind == NodeKind::BranchIf)        ? IM_COL32(120, 65, 25, 255) :
                         (n.kind == NodeKind::LoopWhile || n.kind == NodeKind::LoopDoWhile || n.kind == NodeKind::LoopFor) ? IM_COL32(75, 35, 95, 255) :
                         IM_COL32(35, 42, 52, 255);
@@ -444,8 +468,23 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
         if (ImGui::MenuItem("Struct Definition (Veri Yapisi)")) {
             pm.AddNode(NodeKind::StructDef, "Struct Definition", contextMenuPos.x, contextMenuPos.y);
         }
-        if (ImGui::MenuItem("Vector Operation (std::vector)")) {
-            pm.AddNode(NodeKind::VectorOp, "Vector Operation", contextMenuPos.x, contextMenuPos.y);
+        if (ImGui::BeginMenu(isEn ? "Data Structures (Veri Yapilari)" : "Veri Yapıları (Data Structures)")) {
+            if (ImGui::MenuItem("std::vector (Dinamik Dizi)")) {
+                pm.AddNode(NodeKind::VectorOp, "std::vector", contextMenuPos.x, contextMenuPos.y);
+            }
+            if (ImGui::MenuItem("std::list (Bağlı Liste)")) {
+                pm.AddNode(NodeKind::ListOp, "std::list", contextMenuPos.x, contextMenuPos.y);
+            }
+            if (ImGui::MenuItem("std::stack (Yığın - LIFO)")) {
+                pm.AddNode(NodeKind::StackOp, "std::stack", contextMenuPos.x, contextMenuPos.y);
+            }
+            if (ImGui::MenuItem("std::queue (Kuyruk - FIFO)")) {
+                pm.AddNode(NodeKind::QueueOp, "std::queue", contextMenuPos.x, contextMenuPos.y);
+            }
+            if (ImGui::MenuItem("Sabit Dizi (std::array / Dizi)")) {
+                pm.AddNode(NodeKind::ArrayOp, "Array (Dizi)", contextMenuPos.x, contextMenuPos.y);
+            }
+            ImGui::EndMenu();
         }
         if (ImGui::MenuItem("Assign Value (Deger Ata)")) {
             pm.AddNode(NodeKind::Assign, "Assign Value", contextMenuPos.x, contextMenuPos.y);
@@ -595,6 +634,11 @@ void RenderInspectorPanel(ProjectManager& pm, int& selectedNodeId) {
                 strncpy(vName, n->targetVar.c_str(), sizeof(vName));
                 if (ImGui::InputText(isEn ? "Variable Name" : "Değişken Adı", vName, sizeof(vName))) {
                     n->targetVar = vName;
+                }
+
+                ImGui::Checkbox(isEn ? "const (Read-Only / Immutable)" : "const (Değiştirilemez / Salt Okunur)", &n->isConst);
+                if (n->isConst) {
+                    ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), isEn ? "Immutable: Value cannot be altered after initialization." : "Değişmez: Tanımlandıktan sonra mutasyona uğratılamaz!");
                 }
 
                 // Özel Tip (Custom Struct) veya Standart C++ Tipi
@@ -792,6 +836,14 @@ void RenderInspectorPanel(ProjectManager& pm, int& selectedNodeId) {
                     if (ImGui::Combo(isEn ? "Field Type" : "Alan Türü", &mType, typeNames, IM_ARRAYSIZE(typeNames))) {
                         n->structMembers[i].type = (TypeKind)mType;
                     }
+
+                    char defValBuf[64];
+                    strncpy(defValBuf, n->structMembers[i].defaultValue.c_str(), sizeof(defValBuf));
+                    if (ImGui::InputText(isEn ? "Default Value" : "Varsayılan Değer", defValBuf, sizeof(defValBuf))) {
+                        n->structMembers[i].defaultValue = defValBuf;
+                        n->structMembers[i].hasDefault = true;
+                    }
+
                     if (ImGui::Button(isEn ? "Remove Field" : "Alanı Kaldır")) {
                         n->structMembers.erase(n->structMembers.begin() + i);
                         ImGui::PopID();
@@ -802,36 +854,65 @@ void RenderInspectorPanel(ProjectManager& pm, int& selectedNodeId) {
                 }
 
                 if (ImGui::Button(isEn ? "+ Add Field" : "+ Yeni Alan Ekle")) {
-                    n->structMembers.push_back({ "alan_" + std::to_string(n->structMembers.size() + 1), TypeKind::Int32 });
+                    n->structMembers.push_back({ "alan_" + std::to_string(n->structMembers.size() + 1), TypeKind::Int32, "0", true });
+                }
+
+                ImGui::Spacing();
+                ImGui::Separator();
+                ImGui::Checkbox(isEn ? "Generate Destructor (~Struct)" : "Yıkıcı Metot (~Destructor) Tanımla", &n->hasDestructor);
+                if (n->hasDestructor) {
+                    char dMsgBuf[128];
+                    strncpy(dMsgBuf, n->destructorMsg.c_str(), sizeof(dMsgBuf));
+                    if (ImGui::InputText(isEn ? "Destructor Log Message" : "Yıkıcı Konsol Mesajı", dMsgBuf, sizeof(dMsgBuf))) {
+                        n->destructorMsg = dMsgBuf;
+                    }
+                    ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.2f, 1.0f), isEn 
+                        ? "RAII: Automatically executed when the object is destroyed/freed." 
+                        : "RAII: Nesne bellekten silindiğinde otomatik çağrılır (Unreal Destroy muadili).");
                 }
 
                 ImGui::Spacing();
                 ImGui::TextColored(ImVec4(0.4f, 0.9f, 0.5f, 1.0f), isEn ? "C++ Struct Preview:" : "C++ Struct Önizlemesi:");
                 std::string preview = "struct " + n->structName + " {\n";
                 for (const auto& m : n->structMembers) {
-                    preview += "    " + std::string(TypeKindToString(m.type)) + " " + m.name + ";\n";
+                    preview += "    " + std::string(TypeKindToString(m.type)) + " " + m.name;
+                    if (m.hasDefault && !m.defaultValue.empty()) {
+                        preview += " = " + m.defaultValue;
+                    }
+                    preview += ";\n";
+                }
+                if (n->hasDestructor) {
+                    preview += "\n    // RAII Yikici Metot\n";
+                    preview += "    ~" + n->structName + "() {\n";
+                    preview += "        std::cout << \"[DESTRUCTOR] " + n->destructorMsg + "\" << std::endl;\n";
+                    preview += "    }\n";
                 }
                 preview += "};";
                 ImGui::TextUnformatted(preview.c_str());
             } else if (n->kind == NodeKind::VectorOp) {
                 char vName[64];
-                strncpy(vName, n->vectorName.c_str(), sizeof(vName));
+                std::string currentDS = !n->dsName.empty() ? n->dsName : n->vectorName;
+                strncpy(vName, currentDS.c_str(), sizeof(vName));
                 if (ImGui::InputText(isEn ? "Vector Name" : "Vector Adı", vName, sizeof(vName))) {
+                    n->dsName = vName;
                     n->vectorName = vName;
                 }
 
                 const char* opTypes[] = { "push_back (Sona Ekle)", "pop_back (Sondan Sil)", "clear (Tümünü Temizle)" };
-                int currentOp = (n->vectorOpType == "push_back") ? 0 : (n->vectorOpType == "pop_back" ? 1 : 2);
+                std::string currentOpStr = !n->dsOpType.empty() ? n->dsOpType : n->vectorOpType;
+                int currentOp = (currentOpStr == "push_back") ? 0 : (currentOpStr == "pop_back" ? 1 : 2);
                 if (ImGui::Combo(isEn ? "Operation" : "Vektör İşlemi", &currentOp, opTypes, IM_ARRAYSIZE(opTypes))) {
-                    if (currentOp == 0) n->vectorOpType = "push_back";
-                    else if (currentOp == 1) n->vectorOpType = "pop_back";
-                    else n->vectorOpType = "clear";
+                    if (currentOp == 0) { n->dsOpType = "push_back"; n->vectorOpType = "push_back"; }
+                    else if (currentOp == 1) { n->dsOpType = "pop_back"; n->vectorOpType = "pop_back"; }
+                    else { n->dsOpType = "clear"; n->vectorOpType = "clear"; }
                 }
 
-                if (n->vectorOpType == "push_back") {
+                if (currentOp == 0) {
                     char argBuf[64];
-                    strncpy(argBuf, n->vectorOpArg.c_str(), sizeof(argBuf));
+                    std::string currentArg = !n->dsOpArg.empty() ? n->dsOpArg : n->vectorOpArg;
+                    strncpy(argBuf, currentArg.c_str(), sizeof(argBuf));
                     if (ImGui::InputText(isEn ? "Value to Push" : "Eklenecek Değer / İfade", argBuf, sizeof(argBuf))) {
+                        n->dsOpArg = argBuf;
                         n->vectorOpArg = argBuf;
                     }
                 }
@@ -839,8 +920,122 @@ void RenderInspectorPanel(ProjectManager& pm, int& selectedNodeId) {
                 ImGui::Spacing();
                 ImGui::TextColored(ImVec4(0.4f, 0.8f, 1.0f, 1.0f), isEn ? "Data Structure Note:" : "Veri Yapısı Notu:");
                 ImGui::TextWrapped(isEn 
-                    ? "std::vector is a contiguous array. push_back is O(1) amortized and CPU cache-friendly!" 
+                    ? "std::vector is a contiguous dynamic array. push_back is O(1) amortized and CPU cache-friendly!" 
                     : "std::vector ardışık dinamik dizidir. push_back() CPU L1 önbellek dostudur ve O(1) sabit sürede çalışır!");
+            } else if (n->kind == NodeKind::ListOp) {
+                char lName[64];
+                strncpy(lName, n->dsName.c_str(), sizeof(lName));
+                if (ImGui::InputText(isEn ? "List Name" : "Bağlı Liste Adı", lName, sizeof(lName))) {
+                    n->dsName = lName;
+                }
+
+                const char* opTypes[] = { "push_back (Sona Ekle)", "push_front (Başa Ekle)", "pop_front (Baştan Sil)", "pop_back (Sondan Sil)", "clear (Temizle)" };
+                int currentOp = (n->dsOpType == "push_back") ? 0 :
+                                (n->dsOpType == "push_front") ? 1 :
+                                (n->dsOpType == "pop_front") ? 2 :
+                                (n->dsOpType == "pop_back") ? 3 : 4;
+                if (ImGui::Combo(isEn ? "Operation" : "Liste İşlemi", &currentOp, opTypes, IM_ARRAYSIZE(opTypes))) {
+                    if (currentOp == 0) n->dsOpType = "push_back";
+                    else if (currentOp == 1) n->dsOpType = "push_front";
+                    else if (currentOp == 2) n->dsOpType = "pop_front";
+                    else if (currentOp == 3) n->dsOpType = "pop_back";
+                    else n->dsOpType = "clear";
+                }
+
+                if (currentOp == 0 || currentOp == 1) {
+                    char argBuf[64];
+                    strncpy(argBuf, n->dsOpArg.c_str(), sizeof(argBuf));
+                    if (ImGui::InputText(isEn ? "Value to Insert" : "Eklenecek Değer", argBuf, sizeof(argBuf))) {
+                        n->dsOpArg = argBuf;
+                    }
+                }
+
+                ImGui::Spacing();
+                ImGui::TextColored(ImVec4(0.3f, 0.9f, 0.7f, 1.0f), isEn ? "Data Structure Note:" : "Veri Yapısı Notu:");
+                ImGui::TextWrapped(isEn 
+                    ? "std::list is a doubly linked list. Inserting/removing at front or back is strictly O(1) time with pointer rewiring." 
+                    : "std::list çift yönlü bağlı listedir (Doubly Linked List). Başa ve sona ekleme/silme kesin olarak O(1) sürededir!");
+            } else if (n->kind == NodeKind::StackOp) {
+                char sName[64];
+                strncpy(sName, n->dsName.c_str(), sizeof(sName));
+                if (ImGui::InputText(isEn ? "Stack Name" : "Yığın (Stack) Adı", sName, sizeof(sName))) {
+                    n->dsName = sName;
+                }
+
+                const char* opTypes[] = { "push (Tepeye Ekle)", "pop (Tepeden Çıkar)", "top (Tepe Elemanı Oku)" };
+                int currentOp = (n->dsOpType == "push") ? 0 : (n->dsOpType == "pop" ? 1 : 2);
+                if (ImGui::Combo(isEn ? "Operation" : "Yığın İşlemi", &currentOp, opTypes, IM_ARRAYSIZE(opTypes))) {
+                    if (currentOp == 0) n->dsOpType = "push";
+                    else if (currentOp == 1) n->dsOpType = "pop";
+                    else n->dsOpType = "top";
+                }
+
+                if (currentOp == 0) {
+                    char argBuf[64];
+                    strncpy(argBuf, n->dsOpArg.c_str(), sizeof(argBuf));
+                    if (ImGui::InputText(isEn ? "Value to Push" : "Tepeye Eklenecek Değer", argBuf, sizeof(argBuf))) {
+                        n->dsOpArg = argBuf;
+                    }
+                }
+
+                ImGui::Spacing();
+                ImGui::TextColored(ImVec4(0.8f, 0.5f, 0.9f, 1.0f), isEn ? "Data Structure Note:" : "Veri Yapısı Notu:");
+                ImGui::TextWrapped(isEn 
+                    ? "std::stack operates on LIFO (Last In, First Out). Used in function call stacks, recursion, and Undo systems!" 
+                    : "std::stack Son Giren İlk Çıkar (LIFO) prensibiyle çalışır. Fonksiyon çağrı yığını, özyineleme ve Geri Al (Undo) mekanizmalarının temelidir!");
+            } else if (n->kind == NodeKind::QueueOp) {
+                char qName[64];
+                strncpy(qName, n->dsName.c_str(), sizeof(qName));
+                if (ImGui::InputText(isEn ? "Queue Name" : "Kuyruk (Queue) Adı", qName, sizeof(qName))) {
+                    n->dsName = qName;
+                }
+
+                const char* opTypes[] = { "push (Kuyruğa Ekle)", "pop (Kuyruktan Çıkar)", "front (Öndekini Oku)" };
+                int currentOp = (n->dsOpType == "push") ? 0 : (n->dsOpType == "pop" ? 1 : 2);
+                if (ImGui::Combo(isEn ? "Operation" : "Kuyruk İşlemi", &currentOp, opTypes, IM_ARRAYSIZE(opTypes))) {
+                    if (currentOp == 0) n->dsOpType = "push";
+                    else if (currentOp == 1) n->dsOpType = "pop";
+                    else n->dsOpType = "front";
+                }
+
+                if (currentOp == 0) {
+                    char argBuf[64];
+                    strncpy(argBuf, n->dsOpArg.c_str(), sizeof(argBuf));
+                    if (ImGui::InputText(isEn ? "Value to Enqueue" : "Kuyruğa Eklenecek Değer", argBuf, sizeof(argBuf))) {
+                        n->dsOpArg = argBuf;
+                    }
+                }
+
+                ImGui::Spacing();
+                ImGui::TextColored(ImVec4(0.9f, 0.7f, 0.3f, 1.0f), isEn ? "Data Structure Note:" : "Veri Yapısı Notu:");
+                ImGui::TextWrapped(isEn 
+                    ? "std::queue operates on FIFO (First In, First Out). Essential for task schedulers, print spoolers, and message queues!" 
+                    : "std::queue İlk Giren İlk Çıkar (FIFO) prensibiyle çalışır. Görev sıralayıcılar ve mesaj kuyruklarının temelidir!");
+            } else if (n->kind == NodeKind::ArrayOp) {
+                char aName[64];
+                strncpy(aName, n->dsName.c_str(), sizeof(aName));
+                if (ImGui::InputText(isEn ? "Array Name" : "Dizi Adı", aName, sizeof(aName))) {
+                    n->dsName = aName;
+                }
+
+                ImGui::InputInt(isEn ? "Array Size (Fixed)" : "Dizi Boyutu (Sabit N)", &n->arraySize);
+                if (n->arraySize < 1) n->arraySize = 1;
+
+                ImGui::InputInt(isEn ? "Target Index" : "Erişilecek İndeks (0..N-1)", &n->arrayIndex);
+                if (n->arrayIndex < 0) n->arrayIndex = 0;
+                if (n->arrayIndex >= n->arraySize) n->arrayIndex = n->arraySize - 1;
+
+                char argBuf[64];
+                strncpy(argBuf, n->dsOpArg.c_str(), sizeof(argBuf));
+                if (ImGui::InputText(isEn ? "Value at Index" : "İndekse Atanacak Değer", argBuf, sizeof(argBuf))) {
+                    n->dsOpArg = argBuf;
+                }
+
+                ImGui::Spacing();
+                ImGui::TextColored(ImVec4(0.4f, 0.7f, 1.0f, 1.0f), isEn ? "Data Structure Note:" : "Veri Yapısı Notu:");
+                ImGui::TextWrapped(isEn 
+                    ? "Fixed-size arrays allocate contiguous memory on the stack with zero dynamic overhead. Direct indexing is O(1)!" 
+                    : "Sabit boyutlu diziler Stack üzerinde ardışık ayrılır, sıfır dinamik yük taşır. İndeksle doğrudan erişim O(1) sabit süredir!");
             }
 
             ImGui::Spacing();

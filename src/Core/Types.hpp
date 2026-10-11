@@ -84,7 +84,11 @@ enum class NodeKind {
     LoopFor,            // For Dongusu
     SwitchCase,         // Switch-Case Coklu Karar Yapisi
     StructDef,          // Struct Tanimlama Blogu
-    VectorOp            // std::vector Islemleri (push_back, pop_back vb.)
+    VectorOp,           // std::vector Islemleri (push_back, pop_back vb.)
+    ListOp,             // std::list Islemleri (push_front, push_back, pop_front vb.)
+    StackOp,            // std::stack Islemleri (push, pop, top - LIFO)
+    QueueOp,            // std::queue Islemleri (push, pop, front - FIFO)
+    ArrayOp             // Sabit Boyutlu Dizi (std::array / C-Dizi)
 };
 
 enum class PointerKind {
@@ -96,6 +100,8 @@ enum class PointerKind {
 struct StructMember {
     std::string name = "alan";
     TypeKind type = TypeKind::Int32;
+    std::string defaultValue = "0";
+    bool hasDefault = true;
 };
 
 enum class PinShape {
@@ -128,6 +134,7 @@ struct FlowNode {
     std::string targetVar = "x";
     TypeKind varType = TypeKind::Int32;
     std::string expr = "0";
+    bool isConst = false; // const degismez tanimi
     
     // Akilli Isaretci & Ozel Tip Ayarlari
     PointerKind pointerKind = PointerKind::RawValue;
@@ -152,8 +159,17 @@ struct FlowNode {
     // Struct Tanimlama Ayarlari
     std::string structName = "Oyuncu";
     std::vector<StructMember> structMembers;
+    bool hasDestructor = true; // RAII Yikici Metot (~Oyuncu())
+    std::string destructorMsg = "Oyuncu nesnesi bellekten silindi (Destructor cagirildi)!";
 
-    // std::vector Veri Yapisi Ayarlari
+    // Veri Yapilari Ayarlari (vector, list, stack, queue, array)
+    std::string dsName = "veriYapisi";
+    std::string dsOpType = "push_back";
+    std::string dsOpArg = "10";
+    int arraySize = 5;
+    int arrayIndex = 0;
+
+    // std::vector Veri Yapisi Ayarlari (Geriye donuk uyumluluk)
     std::string vectorName = "sayilar";
     std::string vectorOpType = "push_back"; // "push_back", "pop_back", "clear"
     std::string vectorOpArg = "10";

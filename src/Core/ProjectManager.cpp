@@ -101,10 +101,12 @@ FlowNode* ProjectManager::AddNode(NodeKind kind, const std::string& title, float
             node.width = 240.0f;
             node.height = 120.0f;
             node.structName = "Oyuncu";
+            node.hasDestructor = true;
+            node.destructorMsg = "Oyuncu nesnesi bellekten silindi (RAII Temizlendi)!";
             node.structMembers = {
-                { "can", TypeKind::Int32 },
-                { "puan", TypeKind::Int32 },
-                { "isim", TypeKind::String }
+                { "can", TypeKind::Int32, "100", true },
+                { "puan", TypeKind::Int32, "0", true },
+                { "isim", TypeKind::String, "\"Oyuncu_1\"", true }
             };
             node.pins.push_back({ 0, "Giris", PinType::ExecIn, PinShape::Triangle, 12.0f, 45.0f });
             node.pins.push_back({ 1, "Cikis", PinType::ExecOut, PinShape::Triangle, node.width - 12.0f, 45.0f });
@@ -112,9 +114,49 @@ FlowNode* ProjectManager::AddNode(NodeKind kind, const std::string& title, float
         case NodeKind::VectorOp:
             node.width = 230.0f;
             node.height = 110.0f;
+            node.dsName = "sayilar";
             node.vectorName = "sayilar";
+            node.dsOpType = "push_back";
             node.vectorOpType = "push_back";
+            node.dsOpArg = "10";
             node.vectorOpArg = "10";
+            node.pins.push_back({ 0, "Giris", PinType::ExecIn, PinShape::Triangle, 12.0f, 45.0f });
+            node.pins.push_back({ 1, "Cikis", PinType::ExecOut, PinShape::Triangle, node.width - 12.0f, 45.0f });
+            break;
+        case NodeKind::ListOp:
+            node.width = 230.0f;
+            node.height = 110.0f;
+            node.dsName = "bagliListe";
+            node.dsOpType = "push_back";
+            node.dsOpArg = "42";
+            node.pins.push_back({ 0, "Giris", PinType::ExecIn, PinShape::Triangle, 12.0f, 45.0f });
+            node.pins.push_back({ 1, "Cikis", PinType::ExecOut, PinShape::Triangle, node.width - 12.0f, 45.0f });
+            break;
+        case NodeKind::StackOp:
+            node.width = 230.0f;
+            node.height = 110.0f;
+            node.dsName = "yiginStack";
+            node.dsOpType = "push";
+            node.dsOpArg = "50";
+            node.pins.push_back({ 0, "Giris", PinType::ExecIn, PinShape::Triangle, 12.0f, 45.0f });
+            node.pins.push_back({ 1, "Cikis", PinType::ExecOut, PinShape::Triangle, node.width - 12.0f, 45.0f });
+            break;
+        case NodeKind::QueueOp:
+            node.width = 230.0f;
+            node.height = 110.0f;
+            node.dsName = "kuyrukQueue";
+            node.dsOpType = "push";
+            node.dsOpArg = "99";
+            node.pins.push_back({ 0, "Giris", PinType::ExecIn, PinShape::Triangle, 12.0f, 45.0f });
+            node.pins.push_back({ 1, "Cikis", PinType::ExecOut, PinShape::Triangle, node.width - 12.0f, 45.0f });
+            break;
+        case NodeKind::ArrayOp:
+            node.width = 230.0f;
+            node.height = 110.0f;
+            node.dsName = "sabitDizi";
+            node.arraySize = 5;
+            node.arrayIndex = 0;
+            node.dsOpArg = "100";
             node.pins.push_back({ 0, "Giris", PinType::ExecIn, PinShape::Triangle, 12.0f, 45.0f });
             node.pins.push_back({ 1, "Cikis", PinType::ExecOut, PinShape::Triangle, node.width - 12.0f, 45.0f });
             break;
@@ -390,6 +432,10 @@ std::string ProjectManager::GenerateCppCode() {
     ss << "#include <string>\n";
     ss << "#include <cstdint>\n";
     ss << "#include <vector>\n";
+    ss << "#include <list>\n";
+    ss << "#include <stack>\n";
+    ss << "#include <queue>\n";
+    ss << "#include <array>\n";
     ss << "#include <memory>\n\n";
 
     // ── KULLANICI TANIMLI VERI YAPILARI (STRUCTS) ─────────────
@@ -402,7 +448,17 @@ std::string ProjectManager::GenerateCppCode() {
             }
             ss << "struct " << n.structName << " {\n";
             for (const auto& m : n.structMembers) {
-                ss << "    " << TypeKindToString(m.type) << " " << m.name << ";\n";
+                if (m.hasDefault && !m.defaultValue.empty()) {
+                    ss << "    " << TypeKindToString(m.type) << " " << m.name << " = " << m.defaultValue << ";\n";
+                } else {
+                    ss << "    " << TypeKindToString(m.type) << " " << m.name << ";\n";
+                }
+            }
+            if (n.hasDestructor) {
+                ss << "\n    // RAII Yikici Metot (Destructor)\n";
+                ss << "    ~" << n.structName << "() {\n";
+                ss << "        std::cout << \"[DESTRUCTOR ~" << n.structName << "] " << n.destructorMsg << "\" << std::endl;\n";
+                ss << "    }\n";
             }
             ss << "};\n\n";
         }
@@ -440,14 +496,15 @@ std::string ProjectManager::GenerateCppCode() {
                 curr = getTargetNode(curr, 1);
             }
             else if (n->kind == NodeKind::VariableDeclare) {
+                std::string constPrefix = n->isConst ? "const " : "";
                 std::string resolvedType = n->isCustomType ? n->customTypeName : TypeKindToString(n->varType);
 
                 if (n->pointerKind == PointerKind::SharedPtr) {
                     ss << tabs << "// Akilli Isaretci (std::shared_ptr) ile Heap Tahsisi\n";
                     if (n->isCustomType) {
-                        ss << tabs << "std::shared_ptr<" << resolvedType << "> " << n->targetVar << " = std::make_shared<" << resolvedType << ">();\n";
+                        ss << tabs << constPrefix << "std::shared_ptr<" << resolvedType << "> " << n->targetVar << " = std::make_shared<" << resolvedType << ">();\n";
                     } else {
-                        ss << tabs << "std::shared_ptr<" << resolvedType << "> " << n->targetVar << " = std::make_shared<" << resolvedType << ">(" << n->expr << ");\n";
+                        ss << tabs << constPrefix << "std::shared_ptr<" << resolvedType << "> " << n->targetVar << " = std::make_shared<" << resolvedType << ">(" << n->expr << ");\n";
                     }
                     ss << tabs << "std::cout << \"[SMART PTR] " << n->targetVar << " olusturuldu (Ref Count: \" << " << n->targetVar << ".use_count() << \")\" << std::endl;\n";
                     if (!n->isCustomType) {
@@ -458,22 +515,22 @@ std::string ProjectManager::GenerateCppCode() {
                 else if (n->pointerKind == PointerKind::UniquePtr) {
                     ss << tabs << "// Tekil Isaretci (std::unique_ptr) ile Heap Tahsisi\n";
                     if (n->isCustomType) {
-                        ss << tabs << "std::unique_ptr<" << resolvedType << "> " << n->targetVar << " = std::make_unique<" << resolvedType << ">();\n";
+                        ss << tabs << constPrefix << "std::unique_ptr<" << resolvedType << "> " << n->targetVar << " = std::make_unique<" << resolvedType << ">();\n";
                     } else {
-                        ss << tabs << "std::unique_ptr<" << resolvedType << "> " << n->targetVar << " = std::make_unique<" << resolvedType << ">(" << n->expr << ");\n";
+                        ss << tabs << constPrefix << "std::unique_ptr<" << resolvedType << "> " << n->targetVar << " = std::make_unique<" << resolvedType << ">(" << n->expr << ");\n";
                     }
                     ss << tabs << "std::cout << \"[UNIQUE PTR] " << n->targetVar << " heap uzerinde tekil olarak tahsis edildi.\" << std::endl;\n\n";
                 }
                 else {
                     if (n->isCustomType) {
                         ss << tabs << "// Nesne Tanimlama (" << resolvedType << ")\n";
-                        ss << tabs << resolvedType << " " << n->targetVar << ";\n";
+                        ss << tabs << constPrefix << resolvedType << " " << n->targetVar << ";\n";
                         ss << tabs << "std::cout << \"[STRUCT INSTANCE] " << n->targetVar << " stack uzerinde olusturuldu.\" << std::endl;\n\n";
                     } else {
-                        ss << tabs << "// Degisken Tanimlama (" << n->targetVar << ")\n";
-                        ss << tabs << resolvedType << " " << n->targetVar << " = " << n->expr << ";\n";
+                        ss << tabs << "// Degisken Tanimlama (" << (n->isConst ? "const " : "") << n->targetVar << ")\n";
+                        ss << tabs << constPrefix << resolvedType << " " << n->targetVar << " = " << n->expr << ";\n";
                         for (const auto& extra : n->multiAssignments) {
-                            ss << tabs << TypeKindToString(extra.varType) << " " << extra.varName << " = " << extra.valueExpr << ";\n";
+                            ss << tabs << constPrefix << TypeKindToString(extra.varType) << " " << extra.varName << " = " << extra.valueExpr << ";\n";
                         }
                         ss << tabs << "std::cout << \"[LOG] " << n->targetVar << " = \" << " << n->targetVar << " << std::endl;\n\n";
                     }
@@ -481,17 +538,71 @@ std::string ProjectManager::GenerateCppCode() {
                 curr = getTargetNode(curr, 1);
             }
             else if (n->kind == NodeKind::VectorOp) {
-                ss << tabs << "// std::vector Islemi: " << n->vectorName << "." << n->vectorOpType << "()\n";
-                if (n->vectorOpType == "push_back") {
-                    ss << tabs << n->vectorName << ".push_back(" << n->vectorOpArg << ");\n";
-                    ss << tabs << "std::cout << \"[VECTOR] " << n->vectorName << ".push_back(" << n->vectorOpArg << ") -> Yeni Boyut: \" << " << n->vectorName << ".size() << std::endl;\n\n";
-                } else if (n->vectorOpType == "pop_back") {
-                    ss << tabs << "if (!" << n->vectorName << ".empty()) " << n->vectorName << ".pop_back();\n";
-                    ss << tabs << "std::cout << \"[VECTOR] " << n->vectorName << ".pop_back() -> Yeni Boyut: \" << " << n->vectorName << ".size() << std::endl;\n\n";
-                } else if (n->vectorOpType == "clear") {
-                    ss << tabs << n->vectorName << ".clear();\n";
-                    ss << tabs << "std::cout << \"[VECTOR] " << n->vectorName << ".clear() calistirildi.\" << std::endl;\n\n";
+                std::string targetDS = !n->dsName.empty() ? n->dsName : n->vectorName;
+                std::string op = !n->dsOpType.empty() ? n->dsOpType : n->vectorOpType;
+                std::string arg = !n->dsOpArg.empty() ? n->dsOpArg : n->vectorOpArg;
+
+                ss << tabs << "// std::vector Islemi: " << targetDS << "." << op << "()\n";
+                if (op == "push_back") {
+                    ss << tabs << targetDS << ".push_back(" << arg << ");\n";
+                    ss << tabs << "std::cout << \"[VECTOR] " << targetDS << ".push_back(" << arg << ") -> Yeni Boyut: \" << " << targetDS << ".size() << std::endl;\n\n";
+                } else if (op == "pop_back") {
+                    ss << tabs << "if (!" << targetDS << ".empty()) " << targetDS << ".pop_back();\n";
+                    ss << tabs << "std::cout << \"[VECTOR] " << targetDS << ".pop_back() -> Yeni Boyut: \" << " << targetDS << ".size() << std::endl;\n\n";
+                } else if (op == "clear") {
+                    ss << tabs << targetDS << ".clear();\n";
+                    ss << tabs << "std::cout << \"[VECTOR] " << targetDS << ".clear() calistirildi.\" << std::endl;\n\n";
                 }
+                curr = getTargetNode(curr, 1);
+            }
+            else if (n->kind == NodeKind::ListOp) {
+                ss << tabs << "// std::list Islemi (Bagli Liste): " << n->dsName << "." << n->dsOpType << "()\n";
+                if (n->dsOpType == "push_back") {
+                    ss << tabs << n->dsName << ".push_back(" << n->dsOpArg << ");\n";
+                    ss << tabs << "std::cout << \"[LIST] " << n->dsName << ".push_back(" << n->dsOpArg << ") -> Boyut: \" << " << n->dsName << ".size() << std::endl;\n\n";
+                } else if (n->dsOpType == "push_front") {
+                    ss << tabs << n->dsName << ".push_front(" << n->dsOpArg << ");\n";
+                    ss << tabs << "std::cout << \"[LIST] " << n->dsName << ".push_front(" << n->dsOpArg << ") -> Boyut: \" << " << n->dsName << ".size() << std::endl;\n\n";
+                } else if (n->dsOpType == "pop_front") {
+                    ss << tabs << "if (!" << n->dsName << ".empty()) " << n->dsName << ".pop_front();\n";
+                    ss << tabs << "std::cout << \"[LIST] " << n->dsName << ".pop_front() (Bastan Silindi - O(1))\" << std::endl;\n\n";
+                } else if (n->dsOpType == "pop_back") {
+                    ss << tabs << "if (!" << n->dsName << ".empty()) " << n->dsName << ".pop_back();\n";
+                    ss << tabs << "std::cout << \"[LIST] " << n->dsName << ".pop_back() (Sondan Silindi)\" << std::endl;\n\n";
+                } else if (n->dsOpType == "clear") {
+                    ss << tabs << n->dsName << ".clear();\n";
+                    ss << tabs << "std::cout << \"[LIST] " << n->dsName << ".clear() tamamlandi.\" << std::endl;\n\n";
+                }
+                curr = getTargetNode(curr, 1);
+            }
+            else if (n->kind == NodeKind::StackOp) {
+                ss << tabs << "// std::stack Islemi (Yigin / LIFO): " << n->dsName << "." << n->dsOpType << "()\n";
+                if (n->dsOpType == "push") {
+                    ss << tabs << n->dsName << ".push(" << n->dsOpArg << ");\n";
+                    ss << tabs << "std::cout << \"[STACK] " << n->dsName << ".push(" << n->dsOpArg << ") -> Tepe Elemani (top): \" << " << n->dsName << ".top() << std::endl;\n\n";
+                } else if (n->dsOpType == "pop") {
+                    ss << tabs << "if (!" << n->dsName << ".empty()) { std::cout << \"[STACK] Pop Edilen Eleman: \" << " << n->dsName << ".top() << std::endl; " << n->dsName << ".pop(); }\n\n";
+                } else if (n->dsOpType == "top") {
+                    ss << tabs << "if (!" << n->dsName << ".empty()) std::cout << \"[STACK TOP] Tepe Eleman: \" << " << n->dsName << ".top() << std::endl;\n\n";
+                }
+                curr = getTargetNode(curr, 1);
+            }
+            else if (n->kind == NodeKind::QueueOp) {
+                ss << tabs << "// std::queue Islemi (Kuyruk / FIFO): " << n->dsName << "." << n->dsOpType << "()\n";
+                if (n->dsOpType == "push") {
+                    ss << tabs << n->dsName << ".push(" << n->dsOpArg << ");\n";
+                    ss << tabs << "std::cout << \"[QUEUE] " << n->dsName << ".push(" << n->dsOpArg << ") -> Kuyruk Basi (front): \" << " << n->dsName << ".front() << std::endl;\n\n";
+                } else if (n->dsOpType == "pop") {
+                    ss << tabs << "if (!" << n->dsName << ".empty()) { std::cout << \"[QUEUE] Pop Edilen (Cikan) Eleman: \" << " << n->dsName << ".front() << std::endl; " << n->dsName << ".pop(); }\n\n";
+                } else if (n->dsOpType == "front") {
+                    ss << tabs << "if (!" << n->dsName << ".empty()) std::cout << \"[QUEUE FRONT] Ilk Eleman: \" << " << n->dsName << ".front() << std::endl;\n\n";
+                }
+                curr = getTargetNode(curr, 1);
+            }
+            else if (n->kind == NodeKind::ArrayOp) {
+                ss << tabs << "// Sabit Boyutlu Dizi Islemi (Array Indexing): " << n->dsName << "[" << n->arrayIndex << "] = " << n->dsOpArg << "\n";
+                ss << tabs << n->dsName << "[" << n->arrayIndex << "] = " << n->dsOpArg << ";\n";
+                ss << tabs << "std::cout << \"[ARRAY] " << n->dsName << "[" << n->arrayIndex << "] = \" << " << n->dsName << "[" << n->arrayIndex << "] << std::endl;\n\n";
                 curr = getTargetNode(curr, 1);
             }
             else if (n->kind == NodeKind::Assign) {
