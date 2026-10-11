@@ -127,17 +127,52 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
     // Cizim Alani
     ImGui::BeginChild("FlowCanvas", ImVec2(0, 0), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
     ImDrawList* drawList = ImGui::GetWindowDrawList();
-    ImVec2 origin = ImGui::GetCursorScreenPos();
+    ImVec2 screenOrigin = ImGui::GetCursorScreenPos();
     ImVec2 mousePos = ImGui::GetIO().MousePos;
     ImVec2 size = ImGui::GetContentRegionAvail();
 
-    // Izgara Cizimi
-    ImU32 gridCol = IM_COL32(35, 40, 50, 255);
-    for (float x = 0; x < size.x; x += 32.0f) {
-        drawList->AddLine(ImVec2(origin.x + x, origin.y), ImVec2(origin.x + x, origin.y + size.y), gridCol);
+    // ── Kamera Pan & Zoom Degiskenleri ──────────────────────────────────────
+    static ImVec2 panOffset = { 0.0f, 0.0f };
+    static float zoomLevel = 1.0f;
+
+    bool isCanvasHovered = ImGui::IsWindowHovered();
+
+    // 1. Orta Tus (Middle Click) veya Alt + Sol Tik ile Harita Kaydirma (Pan)
+    if (isCanvasHovered && ImGui::IsMouseDragging(2, 0.0f)) {
+        ImVec2 dragDelta = ImGui::GetIO().MouseDelta;
+        panOffset.x += dragDelta.x;
+        panOffset.y += dragDelta.y;
     }
-    for (float y = 0; y < size.y; y += 32.0f) {
-        drawList->AddLine(ImVec2(origin.x, origin.y + y), ImVec2(origin.x + size.x, origin.y + y), gridCol);
+
+    // 2. Fare Tekerlegi ile Yakinlastirma / Uzaklastirma (Zoom: 0.6x - 1.8x)
+    float wheel = ImGui::GetIO().MouseWheel;
+    if (isCanvasHovered && wheel != 0.0f) {
+        float prevZoom = zoomLevel;
+        zoomLevel += wheel * 0.1f;
+        if (zoomLevel < 0.6f) zoomLevel = 0.6f;
+        if (zoomLevel > 1.8f) zoomLevel = 1.8f;
+
+        // Imlece dogru zoom yapma dengesi
+        panOffset.x -= (mousePos.x - screenOrigin.x - panOffset.x) * (zoomLevel / prevZoom - 1.0f);
+        panOffset.y -= (mousePos.y - screenOrigin.y - panOffset.y) * (zoomLevel / prevZoom - 1.0f);
+    }
+
+    // Donusturulmus Sanal Koken (Origin)
+    ImVec2 origin(screenOrigin.x + panOffset.x, screenOrigin.y + panOffset.y);
+
+    // 3. Sonsuz Izgara Cizimi (Sifir Ek Bellek Maliyetli Modulo Geometrisi)
+    if (pm.showGrid) {
+        ImU32 gridCol = IM_COL32(35, 40, 50, 255);
+        float gridSize = 32.0f * zoomLevel;
+        float startX = fmodf(panOffset.x, gridSize);
+        float startY = fmodf(panOffset.y, gridSize);
+
+        for (float x = startX; x < size.x; x += gridSize) {
+            drawList->AddLine(ImVec2(screenOrigin.x + x, screenOrigin.y), ImVec2(screenOrigin.x + x, screenOrigin.y + size.y), gridCol);
+        }
+        for (float y = startY; y < size.y; y += gridSize) {
+            drawList->AddLine(ImVec2(screenOrigin.x, screenOrigin.y + y), ImVec2(screenOrigin.x + size.x, screenOrigin.y + y), gridCol);
+        }
     }
 
     // Klavyeden Delete tusuna basilinca secili dugumu sil
@@ -332,7 +367,6 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
     }
 
     // ── 3. Bos Alan Tiklamasi: Kutu Secimi (Marquee Selection) ────────────
-    bool isCanvasHovered = ImGui::IsWindowHovered();
     if (ImGui::IsMouseClicked(0) && isCanvasHovered && draggingId == -1 && wireDragFromNode == -1 && hoveredPinNode == -1) {
         // Herhangi bir dugume tiklanmadiysa kutu secimini baslat
         isBoxSelecting = true;
