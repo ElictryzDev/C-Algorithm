@@ -97,6 +97,27 @@ FlowNode* ProjectManager::AddNode(NodeKind kind, const std::string& title, float
             node.pins.push_back({ 3, "Default", PinType::ExecOut, PinShape::Diamond, node.width - 12.0f, 105.0f });
             node.pins.push_back({ 4, "Bitti (Exit)", PinType::ExecOut, PinShape::Triangle, node.width - 12.0f, 135.0f });
             break;
+        case NodeKind::StructDef:
+            node.width = 240.0f;
+            node.height = 120.0f;
+            node.structName = "Oyuncu";
+            node.structMembers = {
+                { "can", TypeKind::Int32 },
+                { "puan", TypeKind::Int32 },
+                { "isim", TypeKind::String }
+            };
+            node.pins.push_back({ 0, "Giris", PinType::ExecIn, PinShape::Triangle, 12.0f, 45.0f });
+            node.pins.push_back({ 1, "Cikis", PinType::ExecOut, PinShape::Triangle, node.width - 12.0f, 45.0f });
+            break;
+        case NodeKind::VectorOp:
+            node.width = 230.0f;
+            node.height = 110.0f;
+            node.vectorName = "sayilar";
+            node.vectorOpType = "push_back";
+            node.vectorOpArg = "10";
+            node.pins.push_back({ 0, "Giris", PinType::ExecIn, PinShape::Triangle, 12.0f, 45.0f });
+            node.pins.push_back({ 1, "Cikis", PinType::ExecOut, PinShape::Triangle, node.width - 12.0f, 45.0f });
+            break;
         default:
             node.pins.push_back({ 0, "Giris", PinType::ExecIn, PinShape::Triangle, 12.0f, 45.0f });
             node.pins.push_back({ 1, "Cikis", PinType::ExecOut, PinShape::Triangle, node.width - 12.0f, 45.0f });
@@ -368,7 +389,24 @@ std::string ProjectManager::GenerateCppCode() {
     ss << "#include <iostream>\n";
     ss << "#include <string>\n";
     ss << "#include <cstdint>\n";
-    ss << "#include <vector>\n\n";
+    ss << "#include <vector>\n";
+    ss << "#include <memory>\n\n";
+
+    // ── KULLANICI TANIMLI VERI YAPILARI (STRUCTS) ─────────────
+    bool hasStructs = false;
+    for (const auto& n : nodes) {
+        if (n.kind == NodeKind::StructDef) {
+            if (!hasStructs) {
+                ss << "// ── KULLANICI TANIMLI VERI YAPILARI (STRUCTS) ─────────────\n";
+                hasStructs = true;
+            }
+            ss << "struct " << n.structName << " {\n";
+            for (const auto& m : n.structMembers) {
+                ss << "    " << TypeKindToString(m.type) << " " << m.name << ";\n";
+            }
+            ss << "};\n\n";
+        }
+    }
 
     ss << "int main() {\n";
     ss << "    std::cout << \"=== " << projectName << " CALISIYOR ===\" << std::endl;\n\n";
@@ -396,13 +434,64 @@ std::string ProjectManager::GenerateCppCode() {
 
             std::string tabs(indent * 4, ' ');
 
-            if (n->kind == NodeKind::VariableDeclare) {
-                ss << tabs << "// Degisken Tanimlama (" << n->targetVar << ")\n";
-                ss << tabs << TypeKindToString(n->varType) << " " << n->targetVar << " = " << n->expr << ";\n";
-                for (const auto& extra : n->multiAssignments) {
-                    ss << tabs << TypeKindToString(extra.varType) << " " << extra.varName << " = " << extra.valueExpr << ";\n";
+            if (n->kind == NodeKind::StructDef) {
+                ss << tabs << "// Struct Bildirimi: " << n->structName << "\n";
+                ss << tabs << "std::cout << \"[STRUCT] " << n->structName << " veri yapisi aktif.\" << std::endl;\n\n";
+                curr = getTargetNode(curr, 1);
+            }
+            else if (n->kind == NodeKind::VariableDeclare) {
+                std::string resolvedType = n->isCustomType ? n->customTypeName : TypeKindToString(n->varType);
+
+                if (n->pointerKind == PointerKind::SharedPtr) {
+                    ss << tabs << "// Akilli Isaretci (std::shared_ptr) ile Heap Tahsisi\n";
+                    if (n->isCustomType) {
+                        ss << tabs << "std::shared_ptr<" << resolvedType << "> " << n->targetVar << " = std::make_shared<" << resolvedType << ">();\n";
+                    } else {
+                        ss << tabs << "std::shared_ptr<" << resolvedType << "> " << n->targetVar << " = std::make_shared<" << resolvedType << ">(" << n->expr << ");\n";
+                    }
+                    ss << tabs << "std::cout << \"[SMART PTR] " << n->targetVar << " olusturuldu (Ref Count: \" << " << n->targetVar << ".use_count() << \")\" << std::endl;\n";
+                    if (!n->isCustomType) {
+                        ss << tabs << "std::cout << \"[SMART PTR] *" << n->targetVar << " = \" << *" << n->targetVar << " << std::endl;\n";
+                    }
+                    ss << "\n";
                 }
-                ss << tabs << "std::cout << \"[LOG] " << n->targetVar << " = \" << (int)" << n->targetVar << " << std::endl;\n\n";
+                else if (n->pointerKind == PointerKind::UniquePtr) {
+                    ss << tabs << "// Tekil Isaretci (std::unique_ptr) ile Heap Tahsisi\n";
+                    if (n->isCustomType) {
+                        ss << tabs << "std::unique_ptr<" << resolvedType << "> " << n->targetVar << " = std::make_unique<" << resolvedType << ">();\n";
+                    } else {
+                        ss << tabs << "std::unique_ptr<" << resolvedType << "> " << n->targetVar << " = std::make_unique<" << resolvedType << ">(" << n->expr << ");\n";
+                    }
+                    ss << tabs << "std::cout << \"[UNIQUE PTR] " << n->targetVar << " heap uzerinde tekil olarak tahsis edildi.\" << std::endl;\n\n";
+                }
+                else {
+                    if (n->isCustomType) {
+                        ss << tabs << "// Nesne Tanimlama (" << resolvedType << ")\n";
+                        ss << tabs << resolvedType << " " << n->targetVar << ";\n";
+                        ss << tabs << "std::cout << \"[STRUCT INSTANCE] " << n->targetVar << " stack uzerinde olusturuldu.\" << std::endl;\n\n";
+                    } else {
+                        ss << tabs << "// Degisken Tanimlama (" << n->targetVar << ")\n";
+                        ss << tabs << resolvedType << " " << n->targetVar << " = " << n->expr << ";\n";
+                        for (const auto& extra : n->multiAssignments) {
+                            ss << tabs << TypeKindToString(extra.varType) << " " << extra.varName << " = " << extra.valueExpr << ";\n";
+                        }
+                        ss << tabs << "std::cout << \"[LOG] " << n->targetVar << " = \" << " << n->targetVar << " << std::endl;\n\n";
+                    }
+                }
+                curr = getTargetNode(curr, 1);
+            }
+            else if (n->kind == NodeKind::VectorOp) {
+                ss << tabs << "// std::vector Islemi: " << n->vectorName << "." << n->vectorOpType << "()\n";
+                if (n->vectorOpType == "push_back") {
+                    ss << tabs << n->vectorName << ".push_back(" << n->vectorOpArg << ");\n";
+                    ss << tabs << "std::cout << \"[VECTOR] " << n->vectorName << ".push_back(" << n->vectorOpArg << ") -> Yeni Boyut: \" << " << n->vectorName << ".size() << std::endl;\n\n";
+                } else if (n->vectorOpType == "pop_back") {
+                    ss << tabs << "if (!" << n->vectorName << ".empty()) " << n->vectorName << ".pop_back();\n";
+                    ss << tabs << "std::cout << \"[VECTOR] " << n->vectorName << ".pop_back() -> Yeni Boyut: \" << " << n->vectorName << ".size() << std::endl;\n\n";
+                } else if (n->vectorOpType == "clear") {
+                    ss << tabs << n->vectorName << ".clear();\n";
+                    ss << tabs << "std::cout << \"[VECTOR] " << n->vectorName << ".clear() calistirildi.\" << std::endl;\n\n";
+                }
                 curr = getTargetNode(curr, 1);
             }
             else if (n->kind == NodeKind::Assign) {

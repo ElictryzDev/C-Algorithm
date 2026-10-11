@@ -82,6 +82,10 @@ void RenderProjectGatingModal(ProjectManager& pm) {
     ImGui::End();
 }
 
+// ── Kamera Pan & Zoom Global Durumu ─────────────────────────────────────
+static ImVec2 g_flowPanOffset = { 0.0f, 0.0f };
+static float g_flowZoomLevel = 1.0f;
+
 // ── 2. Akis Semasi Grafigi (Flow Graph Workspace) ────────────────────────
 void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
     bool isEn = (pm.currentLanguage == AppLanguage::English);
@@ -89,6 +93,14 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
     ImGui::BeginChild("FlowToolbar", ImVec2(0, 44), true);
     if (ImGui::Button(isEn ? "+ Variable" : "+ Değişken")) {
         pm.AddNode(NodeKind::VariableDeclare, isEn ? "Variable Declare" : "Değişken Tanımla", 150, 150);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button(isEn ? "+ Struct" : "+ Struct")) {
+        pm.AddNode(NodeKind::StructDef, isEn ? "Struct Definition" : "Struct Tanımla", 180, 170);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button(isEn ? "+ Vector" : "+ Vector")) {
+        pm.AddNode(NodeKind::VectorOp, isEn ? "Vector Operation" : "Vector İşlemi", 210, 190);
     }
     ImGui::SameLine();
     if (ImGui::Button(isEn ? "+ Assign" : "+ Değer Ata")) {
@@ -118,7 +130,12 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
     if (ImGui::Button("For")) {
         pm.AddNode(NodeKind::LoopFor, isEn ? "For Loop" : "For Döngüsü", 560, 300);
     }
-    ImGui::SameLine(0, 20);
+    ImGui::SameLine(0, 12);
+    if (ImGui::Button(isEn ? "Reset View (100%)" : "Kamerayı Sıfırla (%100)")) {
+        g_flowPanOffset = { 0.0f, 0.0f };
+        g_flowZoomLevel = 1.0f;
+    }
+    ImGui::SameLine(0, 12);
     if (ImGui::Button(isEn ? "Save Project" : "Projeyi Kaydet")) {
         pm.SaveProject();
     }
@@ -131,41 +148,40 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
     ImVec2 mousePos = ImGui::GetIO().MousePos;
     ImVec2 size = ImGui::GetContentRegionAvail();
 
-    // ── Kamera Pan & Zoom Degiskenleri ──────────────────────────────────────
-    static ImVec2 panOffset = { 0.0f, 0.0f };
-    static float zoomLevel = 1.0f;
-
     bool isCanvasHovered = ImGui::IsWindowHovered();
 
     // 1. Orta Tus (Middle Click) veya Alt + Sol Tik ile Harita Kaydirma (Pan)
-    if (isCanvasHovered && ImGui::IsMouseDragging(2, 0.0f)) {
+    if (isCanvasHovered && (ImGui::IsMouseDragging(2, 0.0f) || (ImGui::IsMouseDragging(0, 0.0f) && ImGui::GetIO().KeyAlt))) {
         ImVec2 dragDelta = ImGui::GetIO().MouseDelta;
-        panOffset.x += dragDelta.x;
-        panOffset.y += dragDelta.y;
+        g_flowPanOffset.x += dragDelta.x;
+        g_flowPanOffset.y += dragDelta.y;
     }
 
-    // 2. Fare Tekerlegi ile Yakinlastirma / Uzaklastirma (Zoom: 0.6x - 1.8x)
+    // 2. Fare Tekerlegi ile Imlece Dogru Yakinlastirma / Uzaklastirma (Zoom: 0.6x - 1.6x)
     float wheel = ImGui::GetIO().MouseWheel;
     if (isCanvasHovered && wheel != 0.0f) {
-        float prevZoom = zoomLevel;
-        zoomLevel += wheel * 0.1f;
-        if (zoomLevel < 0.6f) zoomLevel = 0.6f;
-        if (zoomLevel > 1.8f) zoomLevel = 1.8f;
+        float prevZoom = g_flowZoomLevel;
+        g_flowZoomLevel += wheel * 0.08f;
+        if (g_flowZoomLevel < 0.6f) g_flowZoomLevel = 0.6f;
+        if (g_flowZoomLevel > 1.6f) g_flowZoomLevel = 1.6f;
 
-        // Imlece dogru zoom yapma dengesi
-        panOffset.x -= (mousePos.x - screenOrigin.x - panOffset.x) * (zoomLevel / prevZoom - 1.0f);
-        panOffset.y -= (mousePos.y - screenOrigin.y - panOffset.y) * (zoomLevel / prevZoom - 1.0f);
+        // Farenin altindaki dunya noktasini hesapla
+        float worldMouseX = (mousePos.x - screenOrigin.x - g_flowPanOffset.x) / prevZoom;
+        float worldMouseY = (mousePos.y - screenOrigin.y - g_flowPanOffset.y) / prevZoom;
+
+        // Yeni zoom seviyesinde imlecin altindaki dunya noktasini kilitle
+        g_flowPanOffset.x = (mousePos.x - screenOrigin.x) - worldMouseX * g_flowZoomLevel;
+        g_flowPanOffset.y = (mousePos.y - screenOrigin.y) - worldMouseY * g_flowZoomLevel;
     }
-
-    // Donusturulmus Sanal Koken (Origin)
-    ImVec2 origin(screenOrigin.x + panOffset.x, screenOrigin.y + panOffset.y);
 
     // 3. Sonsuz Izgara Cizimi (Sifir Ek Bellek Maliyetli Modulo Geometrisi)
     if (pm.showGrid) {
         ImU32 gridCol = IM_COL32(35, 40, 50, 255);
-        float gridSize = 32.0f * zoomLevel;
-        float startX = fmodf(panOffset.x, gridSize);
-        float startY = fmodf(panOffset.y, gridSize);
+        float gridSize = 32.0f * g_flowZoomLevel;
+        float startX = fmodf(g_flowPanOffset.x, gridSize);
+        if (startX < 0.0f) startX += gridSize;
+        float startY = fmodf(g_flowPanOffset.y, gridSize);
+        if (startY < 0.0f) startY += gridSize;
 
         for (float x = startX; x < size.x; x += gridSize) {
             drawList->AddLine(ImVec2(screenOrigin.x + x, screenOrigin.y), ImVec2(screenOrigin.x + x, screenOrigin.y + size.y), gridCol);
@@ -189,11 +205,13 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
         FlowNode* fn = pm.GetNode(w.fromNode);
         FlowNode* tn = pm.GetNode(w.toNode);
         if (fn && tn && w.fromPin < (int)fn->pins.size() && w.toPin < (int)tn->pins.size()) {
-            ImVec2 p1(origin.x + fn->x + fn->pins[w.fromPin].relX, origin.y + fn->y + fn->pins[w.fromPin].relY);
-            ImVec2 p2(origin.x + tn->x + tn->pins[w.toPin].relX, origin.y + tn->y + tn->pins[w.toPin].relY);
+            ImVec2 p1(screenOrigin.x + g_flowPanOffset.x + (fn->x + fn->pins[w.fromPin].relX) * g_flowZoomLevel,
+                      screenOrigin.y + g_flowPanOffset.y + (fn->y + fn->pins[w.fromPin].relY) * g_flowZoomLevel);
+            ImVec2 p2(screenOrigin.x + g_flowPanOffset.x + (tn->x + tn->pins[w.toPin].relX) * g_flowZoomLevel,
+                      screenOrigin.y + g_flowPanOffset.y + (tn->y + tn->pins[w.toPin].relY) * g_flowZoomLevel);
 
             float dx = fabsf(p2.x - p1.x) * 0.5f;
-            if (dx < 50.0f) dx = 50.0f;
+            if (dx < 40.0f * g_flowZoomLevel) dx = 40.0f * g_flowZoomLevel;
             ImVec2 c1(p1.x + dx, p1.y);
             ImVec2 c2(p2.x - dx, p2.y);
 
@@ -201,7 +219,7 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
             ImVec2 midPt((p1.x + p2.x) * 0.5f, (p1.y + p2.y) * 0.5f);
             float distToMid = hypotf(mousePos.x - midPt.x, mousePos.y - midPt.y);
 
-            bool wireHovered = (distToMid < 25.0f);
+            bool wireHovered = (distToMid < 25.0f * g_flowZoomLevel);
 
             if (wireHovered && isAltDown) {
                 drawList->AddBezierCubic(p1, c1, c2, p2, IM_COL32(255, 60, 60, 255), 4.0f);
@@ -245,35 +263,39 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
     int hoveredPinIdx = -1;
 
     for (auto& n : pm.nodes) {
-        ImVec2 pMin(origin.x + n.x, origin.y + n.y);
-        ImVec2 pMax(pMin.x + n.width, pMin.y + n.height);
+        ImVec2 pMin(screenOrigin.x + g_flowPanOffset.x + n.x * g_flowZoomLevel,
+                    screenOrigin.y + g_flowPanOffset.y + n.y * g_flowZoomLevel);
+        ImVec2 pMax(pMin.x + n.width * g_flowZoomLevel,
+                    pMin.y + n.height * g_flowZoomLevel);
 
         bool isNodeHovered = (mousePos.x >= pMin.x && mousePos.x <= pMax.x && mousePos.y >= pMin.y && mousePos.y <= pMax.y);
         bool isSelected = (selectedNodeId == n.id || multiSelectedNodes.count(n.id) > 0);
 
         // Dugum Karti Govdesi
-        drawList->AddRectFilled(pMin, pMax, IM_COL32(20, 24, 30, 255), 8.0f);
+        drawList->AddRectFilled(pMin, pMax, IM_COL32(20, 24, 30, 255), 8.0f * g_flowZoomLevel);
         ImU32 borderCol = isSelected ? IM_COL32(0, 210, 255, 255) : IM_COL32(45, 52, 64, 255);
-        drawList->AddRect(pMin, pMax, borderCol, 8.0f, 0, isSelected ? 2.5f : 1.2f);
+        drawList->AddRect(pMin, pMax, borderCol, 8.0f * g_flowZoomLevel, 0, isSelected ? 2.5f : 1.2f);
 
         // Baslik Seridi
         ImU32 headCol = (n.kind == NodeKind::Start)           ? IM_COL32(28, 75, 45, 255) :
                         (n.kind == NodeKind::End)             ? IM_COL32(85, 30, 30, 255) :
                         (n.kind == NodeKind::VariableDeclare) ? IM_COL32(25, 58, 80, 255) :
+                        (n.kind == NodeKind::StructDef)       ? IM_COL32(80, 50, 20, 255) :
+                        (n.kind == NodeKind::VectorOp)        ? IM_COL32(20, 70, 85, 255) :
                         (n.kind == NodeKind::BranchIf)        ? IM_COL32(120, 65, 25, 255) :
                         (n.kind == NodeKind::LoopWhile || n.kind == NodeKind::LoopDoWhile || n.kind == NodeKind::LoopFor) ? IM_COL32(75, 35, 95, 255) :
                         IM_COL32(35, 42, 52, 255);
 
-        drawList->AddRectFilled(pMin, ImVec2(pMax.x, pMin.y + 26.0f), headCol, 8.0f, ImDrawFlags_RoundCornersTop);
-        drawList->AddText(ImVec2(pMin.x + 12, pMin.y + 5), IM_COL32(245, 250, 255, 255), n.title.c_str());
+        drawList->AddRectFilled(pMin, ImVec2(pMax.x, pMin.y + 26.0f * g_flowZoomLevel), headCol, 8.0f * g_flowZoomLevel, ImDrawFlags_RoundCornersTop);
+        drawList->AddText(ImVec2(pMin.x + 12 * g_flowZoomLevel, pMin.y + 5), IM_COL32(245, 250, 255, 255), n.title.c_str());
 
         // Pinleri Ciz ve Pin Uzerinde Olup Olmadigini (Hit-Test) Kontrol Et
         for (size_t pIdx = 0; pIdx < n.pins.size(); pIdx++) {
             const auto& pin = n.pins[pIdx];
-            ImVec2 pinPos(pMin.x + pin.relX, pMin.y + pin.relY);
+            ImVec2 pinPos(pMin.x + pin.relX * g_flowZoomLevel, pMin.y + pin.relY * g_flowZoomLevel);
 
             float distToPin = hypotf(mousePos.x - pinPos.x, mousePos.y - pinPos.y);
-            bool isPinHovered = (distToPin <= 10.0f);
+            bool isPinHovered = (distToPin <= 10.0f * g_flowZoomLevel);
 
             if (isPinHovered) {
                 hoveredPinNode = n.id;
@@ -284,7 +306,7 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
             if (isPinHovered) pCol = IM_COL32(255, 255, 100, 255);
 
             if (pin.shape == PinShape::Diamond) {
-                float s = 6.0f;
+                float s = 6.0f * g_flowZoomLevel;
                 drawList->AddQuadFilled(
                     ImVec2(pinPos.x, pinPos.y - s),
                     ImVec2(pinPos.x + s, pinPos.y),
@@ -293,7 +315,7 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
                     isPinHovered ? IM_COL32(255, 255, 100, 255) : IM_COL32(255, 165, 0, 255)
                 );
             } else if (pin.shape == PinShape::Triangle) {
-                float s = 6.0f;
+                float s = 6.0f * g_flowZoomLevel;
                 drawList->AddTriangleFilled(
                     ImVec2(pinPos.x - s, pinPos.y - s),
                     ImVec2(pinPos.x + s, pinPos.y),
@@ -301,17 +323,17 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
                     pCol
                 );
             } else {
-                drawList->AddCircleFilled(pinPos, 6.0f, pCol);
+                drawList->AddCircleFilled(pinPos, 6.0f * g_flowZoomLevel, pCol);
             }
 
-            drawList->AddCircle(pinPos, 7.0f, IM_COL32(255, 255, 255, isPinHovered ? 255 : 120));
+            drawList->AddCircle(pinPos, 7.0f * g_flowZoomLevel, IM_COL32(255, 255, 255, isPinHovered ? 255 : 120));
 
             // Pin Ismi (Temiz hizalanmis)
             if (pin.type == PinType::ExecIn) {
-                drawList->AddText(ImVec2(pinPos.x + 12, pinPos.y - 8), IM_COL32(180, 190, 205, 255), pin.name.c_str());
+                drawList->AddText(ImVec2(pinPos.x + 12 * g_flowZoomLevel, pinPos.y - 8), IM_COL32(180, 190, 205, 255), pin.name.c_str());
             } else {
                 ImVec2 textSize = ImGui::CalcTextSize(pin.name.c_str());
-                drawList->AddText(ImVec2(pinPos.x - textSize.x - 12, pinPos.y - 8), IM_COL32(180, 190, 205, 255), pin.name.c_str());
+                drawList->AddText(ImVec2(pinPos.x - textSize.x - 12 * g_flowZoomLevel, pinPos.y - 8), IM_COL32(180, 190, 205, 255), pin.name.c_str());
             }
         }
 
@@ -321,13 +343,15 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
             multiSelectedNodes.clear();
             multiSelectedNodes.insert(n.id);
             draggingId = n.id;
-            dragOffset = ImVec2(mousePos.x - n.x, mousePos.y - n.y);
+            dragOffset = ImVec2(mousePos.x - pMin.x, mousePos.y - pMin.y);
         }
 
         if (draggingId == n.id) {
             if (ImGui::IsMouseDown(0)) {
-                n.x = mousePos.x - dragOffset.x;
-                n.y = mousePos.y - dragOffset.y;
+                float targetScreenX = mousePos.x - dragOffset.x;
+                float targetScreenY = mousePos.y - dragOffset.y;
+                n.x = (targetScreenX - screenOrigin.x - g_flowPanOffset.x) / g_flowZoomLevel;
+                n.y = (targetScreenY - screenOrigin.y - g_flowPanOffset.y) / g_flowZoomLevel;
             } else {
                 draggingId = -1;
             }
@@ -340,8 +364,8 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
         if (fn && hoveredPinIdx < (int)fn->pins.size()) {
             wireDragFromNode = hoveredPinNode;
             wireDragFromPin = hoveredPinIdx;
-            wireDragStartPos = ImVec2(origin.x + fn->x + fn->pins[hoveredPinIdx].relX, 
-                                      origin.y + fn->y + fn->pins[hoveredPinIdx].relY);
+            wireDragStartPos = ImVec2(screenOrigin.x + g_flowPanOffset.x + (fn->x + fn->pins[hoveredPinIdx].relX) * g_flowZoomLevel, 
+                                      screenOrigin.y + g_flowPanOffset.y + (fn->y + fn->pins[hoveredPinIdx].relY) * g_flowZoomLevel);
         }
     }
 
@@ -349,7 +373,7 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
         if (ImGui::IsMouseDown(0)) {
             // Farenin ucuna dogru dinamik kablo ciz
             float dx = fabsf(mousePos.x - wireDragStartPos.x) * 0.5f;
-            if (dx < 50.0f) dx = 50.0f;
+            if (dx < 40.0f * g_flowZoomLevel) dx = 40.0f * g_flowZoomLevel;
             ImVec2 c1(wireDragStartPos.x + dx, wireDragStartPos.y);
             ImVec2 c2(mousePos.x - dx, mousePos.y);
 
@@ -385,10 +409,10 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
 
             // Kutunun icindeki dugumleri sec
             for (const auto& n : pm.nodes) {
-                float nLeft = origin.x + n.x;
-                float nRight = nLeft + n.width;
-                float nTop = origin.y + n.y;
-                float nBottom = nTop + n.height;
+                float nLeft = screenOrigin.x + g_flowPanOffset.x + n.x * g_flowZoomLevel;
+                float nRight = nLeft + n.width * g_flowZoomLevel;
+                float nTop = screenOrigin.y + g_flowPanOffset.y + n.y * g_flowZoomLevel;
+                float nBottom = nTop + n.height * g_flowZoomLevel;
 
                 if (nRight >= bMin.x && nLeft <= bMax.x && nBottom >= bMin.y && nTop <= bMax.y) {
                     multiSelectedNodes.insert(n.id);
@@ -402,7 +426,8 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
 
     // ── 4. Sag Tik: DUGUM EKLEME BAGLAM MENUSU (Context Spawn Menu) ───────
     if (ImGui::IsMouseClicked(1) && isCanvasHovered) {
-        contextMenuPos = ImVec2(mousePos.x - origin.x, mousePos.y - origin.y);
+        contextMenuPos = ImVec2((mousePos.x - screenOrigin.x - g_flowPanOffset.x) / g_flowZoomLevel,
+                                (mousePos.y - screenOrigin.y - g_flowPanOffset.y) / g_flowZoomLevel);
         ImGui::OpenPopup("NodeSpawnMenu");
     }
 
@@ -415,6 +440,12 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
         }
         if (ImGui::MenuItem("Variable Declare (Tanimla)")) {
             pm.AddNode(NodeKind::VariableDeclare, "Variable Declare", contextMenuPos.x, contextMenuPos.y);
+        }
+        if (ImGui::MenuItem("Struct Definition (Veri Yapisi)")) {
+            pm.AddNode(NodeKind::StructDef, "Struct Definition", contextMenuPos.x, contextMenuPos.y);
+        }
+        if (ImGui::MenuItem("Vector Operation (std::vector)")) {
+            pm.AddNode(NodeKind::VectorOp, "Vector Operation", contextMenuPos.x, contextMenuPos.y);
         }
         if (ImGui::MenuItem("Assign Value (Deger Ata)")) {
             pm.AddNode(NodeKind::Assign, "Assign Value", contextMenuPos.x, contextMenuPos.y);
@@ -566,22 +597,56 @@ void RenderInspectorPanel(ProjectManager& pm, int& selectedNodeId) {
                     n->targetVar = vName;
                 }
 
-                const char* typeNames[] = { "int (Int32)", "long long (Int64)", "float", "double", "bool", "uint8_t (0-255)", "uint16_t", "uint32_t", "uint64_t", "std::string" };
-                int currentType = (int)n->varType;
-                if (ImGui::Combo(isEn ? "Data Type" : "Veri Türü", &currentType, typeNames, IM_ARRAYSIZE(typeNames))) {
-                    n->varType = (TypeKind)currentType;
+                // Özel Tip (Custom Struct) veya Standart C++ Tipi
+                ImGui::Checkbox(isEn ? "Use Custom Struct Type" : "Özel Struct Tipinde Tanımla", &n->isCustomType);
+                if (n->isCustomType) {
+                    char customBuf[64];
+                    strncpy(customBuf, n->customTypeName.c_str(), sizeof(customBuf));
+                    if (ImGui::InputText(isEn ? "Struct Type Name" : "Struct Tip Adı (örn: Oyuncu)", customBuf, sizeof(customBuf))) {
+                        n->customTypeName = customBuf;
+                    }
+                } else {
+                    const char* typeNames[] = { "int (Int32)", "long long (Int64)", "float", "double", "bool", "uint8_t (0-255)", "uint16_t", "uint32_t", "uint64_t", "std::string" };
+                    int currentType = (int)n->varType;
+                    if (ImGui::Combo(isEn ? "Data Type" : "Veri Türü", &currentType, typeNames, IM_ARRAYSIZE(typeNames))) {
+                        n->varType = (TypeKind)currentType;
+                    }
                 }
 
-                char valBuf[64];
-                strncpy(valBuf, n->expr.c_str(), sizeof(valBuf));
-                if (ImGui::InputText(isEn ? "Initial Value" : "Başlangıç Değeri", valBuf, sizeof(valBuf))) {
-                    n->expr = valBuf;
+                // Akıllı İşaretçi / Bellek Yönetim Modu
+                const char* ptrModes[] = { 
+                    "Normal Değer (Stack)", 
+                    "std::shared_ptr (Akıllı İşaretçi / RAII)", 
+                    "std::unique_ptr (Tekil İşaretçi / Heap)" 
+                };
+                int currentPtrMode = (int)n->pointerKind;
+                if (ImGui::Combo(isEn ? "Memory / Pointer Mode" : "Bellek & İşaretçi Modu", &currentPtrMode, ptrModes, IM_ARRAYSIZE(ptrModes))) {
+                    n->pointerKind = (PointerKind)currentPtrMode;
+                }
+
+                if (n->pointerKind == PointerKind::SharedPtr) {
+                    ImGui::TextColored(ImVec4(0.2f, 0.9f, 0.8f, 1.0f), 
+                        isEn ? "Shared Ownership: Managed via std::make_shared with reference count." 
+                             : "Akıllı Yönetim: std::make_shared ile heap tahsisi yapılır. Referans bittiğinde bellek oto-silinir!");
+                } else if (n->pointerKind == PointerKind::UniquePtr) {
+                    ImGui::TextColored(ImVec4(0.9f, 0.8f, 0.2f, 1.0f), 
+                        isEn ? "Exclusive Ownership: Exactly one owner on the heap." 
+                             : "Tekil Sahiplik: Yalnızca tek sahip heap üzerinde yönetir.");
+                }
+
+                if (!n->isCustomType || n->pointerKind == PointerKind::RawValue) {
+                    char valBuf[64];
+                    strncpy(valBuf, n->expr.c_str(), sizeof(valBuf));
+                    if (ImGui::InputText(isEn ? "Initial Value" : "Başlangıç Değeri", valBuf, sizeof(valBuf))) {
+                        n->expr = valBuf;
+                    }
                 }
 
                 ImGui::Spacing();
                 ImGui::Separator();
                 ImGui::TextColored(ImVec4(0, 0.85f, 1.0f, 1.0f), isEn ? "Extra Variables in this Node:" : "Bu Düğümdeki Ek Değişkenler:");
 
+                const char* typeNames[] = { "int (Int32)", "long long (Int64)", "float", "double", "bool", "uint8_t (0-255)", "uint16_t", "uint32_t", "uint64_t", "std::string" };
                 for (size_t i = 0; i < n->multiAssignments.size(); i++) {
                     ImGui::PushID((int)i);
                     char extraName[64];
@@ -702,6 +767,80 @@ void RenderInspectorPanel(ProjectManager& pm, int& selectedNodeId) {
                     }
                 }
                 ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), isEn ? "Default and Completed pins are built-in." : "Default ve Bitti pinleri entegredir.");
+            } else if (n->kind == NodeKind::StructDef) {
+                char sName[64];
+                strncpy(sName, n->structName.c_str(), sizeof(sName));
+                if (ImGui::InputText(isEn ? "Struct Name" : "Struct Yapı Adı", sName, sizeof(sName))) {
+                    n->structName = sName;
+                    n->title = isEn ? ("Struct: " + n->structName) : ("Struct: " + n->structName);
+                }
+
+                ImGui::Spacing();
+                ImGui::Separator();
+                ImGui::TextColored(ImVec4(0, 0.85f, 1.0f, 1.0f), isEn ? "Struct Members (Fields):" : "Struct Alanları (Üye Değişkenler):");
+
+                const char* typeNames[] = { "int (Int32)", "long long (Int64)", "float", "double", "bool", "uint8_t (0-255)", "uint16_t", "uint32_t", "uint64_t", "std::string" };
+
+                for (size_t i = 0; i < n->structMembers.size(); i++) {
+                    ImGui::PushID((int)(200 + i));
+                    char mName[64];
+                    strncpy(mName, n->structMembers[i].name.c_str(), sizeof(mName));
+                    if (ImGui::InputText(isEn ? "Field Name" : "Alan Adı", mName, sizeof(mName))) {
+                        n->structMembers[i].name = mName;
+                    }
+                    int mType = (int)n->structMembers[i].type;
+                    if (ImGui::Combo(isEn ? "Field Type" : "Alan Türü", &mType, typeNames, IM_ARRAYSIZE(typeNames))) {
+                        n->structMembers[i].type = (TypeKind)mType;
+                    }
+                    if (ImGui::Button(isEn ? "Remove Field" : "Alanı Kaldır")) {
+                        n->structMembers.erase(n->structMembers.begin() + i);
+                        ImGui::PopID();
+                        break;
+                    }
+                    ImGui::Separator();
+                    ImGui::PopID();
+                }
+
+                if (ImGui::Button(isEn ? "+ Add Field" : "+ Yeni Alan Ekle")) {
+                    n->structMembers.push_back({ "alan_" + std::to_string(n->structMembers.size() + 1), TypeKind::Int32 });
+                }
+
+                ImGui::Spacing();
+                ImGui::TextColored(ImVec4(0.4f, 0.9f, 0.5f, 1.0f), isEn ? "C++ Struct Preview:" : "C++ Struct Önizlemesi:");
+                std::string preview = "struct " + n->structName + " {\n";
+                for (const auto& m : n->structMembers) {
+                    preview += "    " + std::string(TypeKindToString(m.type)) + " " + m.name + ";\n";
+                }
+                preview += "};";
+                ImGui::TextUnformatted(preview.c_str());
+            } else if (n->kind == NodeKind::VectorOp) {
+                char vName[64];
+                strncpy(vName, n->vectorName.c_str(), sizeof(vName));
+                if (ImGui::InputText(isEn ? "Vector Name" : "Vector Adı", vName, sizeof(vName))) {
+                    n->vectorName = vName;
+                }
+
+                const char* opTypes[] = { "push_back (Sona Ekle)", "pop_back (Sondan Sil)", "clear (Tümünü Temizle)" };
+                int currentOp = (n->vectorOpType == "push_back") ? 0 : (n->vectorOpType == "pop_back" ? 1 : 2);
+                if (ImGui::Combo(isEn ? "Operation" : "Vektör İşlemi", &currentOp, opTypes, IM_ARRAYSIZE(opTypes))) {
+                    if (currentOp == 0) n->vectorOpType = "push_back";
+                    else if (currentOp == 1) n->vectorOpType = "pop_back";
+                    else n->vectorOpType = "clear";
+                }
+
+                if (n->vectorOpType == "push_back") {
+                    char argBuf[64];
+                    strncpy(argBuf, n->vectorOpArg.c_str(), sizeof(argBuf));
+                    if (ImGui::InputText(isEn ? "Value to Push" : "Eklenecek Değer / İfade", argBuf, sizeof(argBuf))) {
+                        n->vectorOpArg = argBuf;
+                    }
+                }
+
+                ImGui::Spacing();
+                ImGui::TextColored(ImVec4(0.4f, 0.8f, 1.0f, 1.0f), isEn ? "Data Structure Note:" : "Veri Yapısı Notu:");
+                ImGui::TextWrapped(isEn 
+                    ? "std::vector is a contiguous array. push_back is O(1) amortized and CPU cache-friendly!" 
+                    : "std::vector ardışık dinamik dizidir. push_back() CPU L1 önbellek dostudur ve O(1) sabit sürede çalışır!");
             }
 
             ImGui::Spacing();

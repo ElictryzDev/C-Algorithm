@@ -82,7 +82,20 @@ enum class NodeKind {
     LoopWhile,          // While Dongusu
     LoopDoWhile,        // Do-While Dongusu
     LoopFor,            // For Dongusu
-    SwitchCase          // Switch-Case Coklu Karar Yapisi
+    SwitchCase,         // Switch-Case Coklu Karar Yapisi
+    StructDef,          // Struct Tanimlama Blogu
+    VectorOp            // std::vector Islemleri (push_back, pop_back vb.)
+};
+
+enum class PointerKind {
+    RawValue,       // Normal Deger (Stack)
+    SharedPtr,      // std::shared_ptr<T> (Heap + RAII Reference Counting)
+    UniquePtr       // std::unique_ptr<T> (Heap + Tekil Sahiplik)
+};
+
+struct StructMember {
+    std::string name = "alan";
+    TypeKind type = TypeKind::Int32;
 };
 
 enum class PinShape {
@@ -116,6 +129,11 @@ struct FlowNode {
     TypeKind varType = TypeKind::Int32;
     std::string expr = "0";
     
+    // Akilli Isaretci & Ozel Tip Ayarlari
+    PointerKind pointerKind = PointerKind::RawValue;
+    bool isCustomType = false;
+    std::string customTypeName = "Oyuncu";
+
     // Coklu Degisken / Coklu Atama Soketleri
     std::vector<AssignmentEntry> multiAssignments;
 
@@ -130,6 +148,15 @@ struct FlowNode {
     // Switch-Case Ayarlari
     std::string switchVar = "secim";
     std::vector<std::string> caseValues = { "1", "2" }; // Case durumlari
+
+    // Struct Tanimlama Ayarlari
+    std::string structName = "Oyuncu";
+    std::vector<StructMember> structMembers;
+
+    // std::vector Veri Yapisi Ayarlari
+    std::string vectorName = "sayilar";
+    std::string vectorOpType = "push_back"; // "push_back", "pop_back", "clear"
+    std::string vectorOpArg = "10";
 
     float x = 80.0f;
     float y = 80.0f;
