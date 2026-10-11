@@ -22,9 +22,8 @@ int main() {
 
     // While Dongusu
     while (sayac < 10) {
-        // Ekrana Cikti Basma
-        std::cout << "Sonsuz Dongu xD" << std::endl;
-
+        sayac++;
+        std::cout << "Sayac Dongusu Bu" << std::endl;
     }
 
     std::cout << "=== PROGRAM TAMAMLANDI ===" << std::endl;

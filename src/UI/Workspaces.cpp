@@ -693,18 +693,35 @@ void RenderCodegenWorkspace(ProjectManager& pm) {
                     return;
                 }
 
-                // 2. Derleme komutu — vcvars64 ile cl.exe
-                std::string compileCmd =
-                    "cmd.exe /c \"call \"\"" + std::string(VCVARS_PATH) + "\"\" >nul 2>&1"
-                    " && cl.exe /nologo /std:c++17 /O1 /EHsc"
-                    " \"" + std::string(g_tempCppPath) + "\""
-                    " /Fe:\"" + std::string(g_tempExePath) + "\""
-                    " 2>&1\"";
+                // 2. Gecici .bat dosyasina derle + calistir komutlarini yaz
+                //    Neden .bat? iç içe tırnak cehennemi yok, cl.exe çıktısı doğru yakalanıyor
+                static char g_tempBatPath[MAX_PATH];
+                snprintf(g_tempBatPath, MAX_PATH, "%s\\_build_run.bat", PROJECTS_DIR);
+
+                FILE* fbat = nullptr;
+                fopen_s(&fbat, g_tempBatPath, "w");
+                if (!fbat) {
+                    g_buildOutput  = "[HATA] Gecici .bat dosyasi olusturulamadi!\n";
+                    g_buildRunning = false;
+                    return;
+                }
+                // .bat icerigi — quoting sorunsuz, her yol ayri satir
+                fprintf(fbat, "@echo off\r\n");
+                fprintf(fbat, "call \"%s\" >nul 2>&1\r\n", VCVARS_PATH);
+                fprintf(fbat, "cl.exe /nologo /std:c++17 /O1 /EHsc \"%s\" /Fe:\"%s\"\r\n",
+                        g_tempCppPath, g_tempExePath);
+                fclose(fbat);
+
+                // .bat cikis kodunu ayri bir dosyaya yaz (capture icin)
+                std::string runBat = std::string("cmd.exe /c \"") + g_tempBatPath + "\" 2>&1";
 
                 g_buildOutput  = isEn
                     ? "=== Compiling with MSVC (cl.exe / C++17) ===\n"
                     : "=== MSVC (cl.exe / C++17) ile Derleniyor ===\n";
-                g_buildOutput += RunCommandCapture(compileCmd, g_lastBuildOk);
+                g_buildOutput += "Kaynak: ";
+                g_buildOutput += g_tempCppPath;
+                g_buildOutput += "\n\n";
+                g_buildOutput += RunCommandCapture(runBat, g_lastBuildOk);
 
                 // 3. Derleme basarili ise calistir
                 if (g_lastBuildOk) {
@@ -731,7 +748,7 @@ void RenderCodegenWorkspace(ProjectManager& pm) {
                 } else {
                     g_buildOutput += isEn
                         ? "\n[BUILD FAILED — Yukardaki derleyici hatalarini inceleyin.]\n"
-                        : "\n[DERLEME BASARISIZ — Check compiler errors above.]\n";
+                        : "\n[DERLEME BASARISIZ — Yukardaki derleyici hatalarini inceleyin.]\n";
                 }
                 g_buildRunning = false;
             }

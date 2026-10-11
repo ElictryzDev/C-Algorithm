@@ -4,12 +4,11 @@ ADVISOR_OP=0
 ADVISOR_COUNT=1000000
 [NODES]
 5|0|Event Software Start|-8|37|x|0|0|Merhaba C-Algorithm!|x < 10|int i = 0|i++
-9|1|Program Return (0)|741|114|x|0|0|Merhaba C-Algorithm!|x < 10|int i = 0|i++
-10|7|While Loop|475|36|x|0|0|Merhaba C-Algorithm!|sayac < 10|int i = 0|i++
-11|4|Print Output|743|3|x|0|0|Sonsuz Dongu xD|x < 10|int i = 0|i++
-12|2|Variable Declare|231|36|sayac|5|1|Merhaba C-Algorithm!|x < 10|int i = 0|i++
+9|1|Program Return (0)|1050|183|x|0|0|Merhaba C-Algorithm!|x < 10|int i = 0|i++
+10|7|While Loop|697|35|x|0|0|Merhaba C-Algorithm!|sayac < 10|int i = 0|i++
+BODY_STMTS|10|sayac++|std::cout << "Sayac Dongusu Bu" << endl
+12|2|Variable Declare|392|45|sayac|5|1|Merhaba C-Algorithm!|x < 10|int i = 0|i++
 [WIRES]
 2|10|2|9|0
-3|10|1|11|0
 3|5|0|12|0
 4|12|1|10|0
