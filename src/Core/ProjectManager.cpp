@@ -106,6 +106,26 @@ FlowNode* ProjectManager::GetNode(int id) {
     return nullptr;
 }
 
+bool ProjectManager::DeleteNode(int id) {
+    // 1. Dugume bagli tum kablolari temizle
+    wires.erase(
+        std::remove_if(wires.begin(), wires.end(), [&](const FlowWire& w) {
+            return w.fromNode == id || w.toNode == id;
+        }),
+        wires.end()
+    );
+
+    // 2. Dugumu listeden sil
+    for (size_t i = 0; i < nodes.size(); i++) {
+        if (nodes[i].id == id) {
+            nodes.erase(nodes.begin() + i);
+            statusMessage = "Dugum #" + std::to_string(id) + " silindi.";
+            return true;
+        }
+    }
+    return false;
+}
+
 bool ProjectManager::WouldCreateCycle(int fromNode, int toNode) const {
     if (fromNode == toNode) return true;
 

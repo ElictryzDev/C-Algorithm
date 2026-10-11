@@ -145,8 +145,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                     RenderAdvisorWorkspace(pm);
                     ImGui::EndTabItem();
                 }
-                if (ImGui::BeginTabItem("💻 Canlı C++ Kodu")) {
+                if (ImGui::BeginTabItem("💻 Canli C++ Kodu")) {
                     RenderCodegenWorkspace(pm);
+                    ImGui::EndTabItem();
+                }
+                if (ImGui::BeginTabItem("⚙️ Ayarlar (Settings)")) {
+                    RenderSettingsWorkspace(pm);
                     ImGui::EndTabItem();
                 }
                 ImGui::EndTabBar();

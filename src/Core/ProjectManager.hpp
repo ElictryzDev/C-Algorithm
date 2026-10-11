@@ -4,6 +4,17 @@
 #include <fstream>
 #include <iostream>
 
+enum class AppLanguage {
+    Turkish,
+    English
+};
+
+enum class AppTheme {
+    OledDark,
+    ClassicDark,
+    Light
+};
+
 class ProjectManager {
 public:
     bool isProjectLoaded = false;
@@ -11,13 +22,18 @@ public:
     std::string projectFilePath = "";
     std::string statusMessage = "Lutfen baslamak icin bir proje olusturun veya acin.";
 
-    // Akış ve Değişken Durumu
+    // Dil ve Tema Ayarlari
+    AppLanguage currentLanguage = AppLanguage::Turkish;
+    AppTheme currentTheme = AppTheme::OledDark;
+    bool showGrid = true;
+
+    // Akis ve Degisken Durumu
     std::vector<VariableDefinition> variables;
     std::vector<FlowNode> nodes;
     std::vector<FlowWire> wires;
     int nextId = 1;
 
-    // Danışman Durumu
+    // Danisman Durumu
     DataStructureType advisorDS = DataStructureType::Vector;
     OperationType advisorOp = OperationType::PopFront;
     int advisorCount = 10000;
@@ -31,16 +47,17 @@ public:
     void SetupDefaultFlow();
     std::vector<std::string> GetSavedProjectFiles(const std::string& folderPath);
 
-    // Düğüm ve Kablo Yardımcıları
+    // Dugum ve Kablo Yardimcilari
     FlowNode* AddNode(NodeKind kind, const std::string& title, float x, float y);
     FlowNode* GetNode(int id);
+    bool DeleteNode(int id);
     bool WouldCreateCycle(int fromNode, int toNode) const;
     bool ConnectPins(int fromNode, int fromPin, int toNode, int toPin);
     void DisconnectWire(int wireId);
 
-    // Danışman Analizi (Birlikte yazdığımız kurallar)
+    // Danisman Analizi (Birlikte yazdigimiz kurallar)
     void RunDiagnostics();
 
-    // C++ Kod Üreticisi
+    // C++ Kod Ureticisi
     std::string GenerateCppCode();
 };

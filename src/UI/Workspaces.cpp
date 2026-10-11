@@ -132,7 +132,16 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
         drawList->AddLine(ImVec2(origin.x, origin.y + y), ImVec2(origin.x + size.x, origin.y + y), gridCol);
     }
 
-    // Bezier Tellerini Ciz
+    // Klavyeden Delete tusuna basilinca secili dugumu sil
+    if (selectedNodeId > 0 && ImGui::IsKeyPressed(ImGuiKey_Delete)) {
+        pm.DeleteNode(selectedNodeId);
+        selectedNodeId = 0;
+    }
+
+    // Bezier Tellerini Ciz ve Alt + Sol Tik ile Koparma Kontrolu
+    int wireToDelete = -1;
+    bool isAltDown = ImGui::GetIO().KeyAlt;
+
     for (const auto& w : pm.wires) {
         FlowNode* fn = pm.GetNode(w.fromNode);
         FlowNode* tn = pm.GetNode(w.toNode);
@@ -145,9 +154,30 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
             ImVec2 c1(p1.x + dx, p1.y);
             ImVec2 c2(p2.x - dx, p2.y);
 
-            drawList->AddBezierCubic(p1, c1, c2, p2, IM_COL32(0, 120, 200, 70), 5.0f);
-            drawList->AddBezierCubic(p1, c1, c2, p2, IM_COL32(0, 200, 232, 255), 2.5f);
+            // Alt tusuna basiliyken kablonun orta noktasina yaklasilinca kirmizi makas uyarisi ver
+            ImVec2 midPt((p1.x + p2.x) * 0.5f, (p1.y + p2.y) * 0.5f);
+            float distToMid = hypotf(mousePos.x - midPt.x, mousePos.y - midPt.y);
+
+            bool wireHovered = (distToMid < 25.0f);
+
+            if (wireHovered && isAltDown) {
+                drawList->AddBezierCubic(p1, c1, c2, p2, IM_COL32(255, 60, 60, 255), 4.0f);
+                drawList->AddCircleFilled(midPt, 7.0f, IM_COL32(255, 30, 30, 255));
+                drawList->AddText(ImVec2(midPt.x + 10, midPt.y - 10), IM_COL32(255, 100, 100, 255), "[Kabloyu Kes]");
+
+                if (ImGui::IsMouseClicked(0)) {
+                    wireToDelete = w.id;
+                }
+            } else {
+                drawList->AddBezierCubic(p1, c1, c2, p2, IM_COL32(0, 120, 200, 70), 5.0f);
+                drawList->AddBezierCubic(p1, c1, c2, p2, IM_COL32(0, 200, 232, 255), 2.5f);
+            }
         }
+    }
+
+    if (wireToDelete > 0) {
+        pm.DisconnectWire(wireToDelete);
+        pm.statusMessage = "Kablo baglantisi koparildi (Alt + Tik).";
     }
 
     // Dugumleri Ciz ve Surukle
@@ -415,8 +445,97 @@ void RenderInspectorPanel(ProjectManager& pm, int& selectedNodeId) {
                 }
                 ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "Ornek: int i = 0; i < 10; i++");
             }
+
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
+
+            // DUGUM SIL BUTONU
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.95f, 0.25f, 0.25f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.6f, 0.1f, 0.1f, 1.0f));
+            if (ImGui::Button("🗑 Dugumu Sil (Delete Node)", ImVec2(-1, 32))) {
+                pm.DeleteNode(selectedNodeId);
+                selectedNodeId = 0;
+            }
+            ImGui::PopStyleColor(3);
         }
     } else {
         ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "Duzenlemek icin akistan bir dugume tiklayin.");
     }
+}
+
+// ── 6. Tema ve Stil Yonetimi ─────────────────────────────────────────────
+void ApplyAppTheme(AppTheme theme) {
+    ImGuiStyle& style = ImGui::GetStyle();
+    ImVec4* colors = style.Colors;
+
+    if (theme == AppTheme::OledDark) {
+        ImGui::StyleColorsDark();
+        colors[ImGuiCol_WindowBg]           = ImVec4(0.04f, 0.05f, 0.07f, 1.00f);
+        colors[ImGuiCol_Header]             = ImVec4(0.10f, 0.15f, 0.22f, 1.00f);
+        colors[ImGuiCol_HeaderHovered]      = ImVec4(0.00f, 0.60f, 0.85f, 0.70f);
+        colors[ImGuiCol_Button]             = ImVec4(0.12f, 0.16f, 0.24f, 1.00f);
+        colors[ImGuiCol_ButtonHovered]      = ImVec4(0.00f, 0.70f, 0.95f, 0.80f);
+        colors[ImGuiCol_ButtonActive]       = ImVec4(0.00f, 0.50f, 0.75f, 1.00f);
+        colors[ImGuiCol_FrameBg]            = ImVec4(0.08f, 0.10f, 0.15f, 1.00f);
+        colors[ImGuiCol_FrameBgHovered]     = ImVec4(0.15f, 0.20f, 0.28f, 1.00f);
+        colors[ImGuiCol_Tab]                = ImVec4(0.07f, 0.10f, 0.14f, 1.00f);
+        colors[ImGuiCol_TabHovered]         = ImVec4(0.00f, 0.70f, 0.95f, 0.80f);
+        colors[ImGuiCol_TabActive]          = ImVec4(0.00f, 0.55f, 0.80f, 1.00f);
+    } else if (theme == AppTheme::ClassicDark) {
+        ImGui::StyleColorsDark();
+    } else if (theme == AppTheme::Light) {
+        ImGui::StyleColorsLight();
+    }
+}
+
+// ── 7. Ayarlar Sekmesi (Settings Workspace) ──────────────────────────────
+void RenderSettingsWorkspace(ProjectManager& pm) {
+    ImGui::TextColored(ImVec4(0, 0.85f, 1.0f, 1.0f), "⚙️ IDE AYARLARI & GORUNUM (SETTINGS)");
+    ImGui::TextColored(ImVec4(0.6f, 0.65f, 0.75f, 1.0f), "Dil secenekleri, tema renkleri ve cizim alani ozellestirmeleri.");
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // 1. Dil Ayarı (Language)
+    ImGui::Text("🌐 1. Dil Secimi (Interface Language):");
+    const char* langNames[] = { "Turkce (Turkish)", "English" };
+    int curLang = (int)pm.currentLanguage;
+    if (ImGui::Combo("##lang", &curLang, langNames, IM_ARRAYSIZE(langNames))) {
+        pm.currentLanguage = (AppLanguage)curLang;
+        pm.statusMessage = (curLang == 0) ? "Dil Turkce olarak ayarlandi." : "Language set to English.";
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // 2. Tema Ayarı (Theme)
+    ImGui::Text("🎨 2. Arayuz Temasi (Color Theme):");
+    const char* themeNames[] = { "OLED Siyah & Turkuaz (OLED Dark)", "Klasik Koyu (Classic Dark)", "Acik Tema (Light Theme)" };
+    int curTheme = (int)pm.currentTheme;
+    if (ImGui::Combo("##theme", &curTheme, themeNames, IM_ARRAYSIZE(themeNames))) {
+        pm.currentTheme = (AppTheme)curTheme;
+        ApplyAppTheme(pm.currentTheme);
+        pm.statusMessage = "Tema guncellendi.";
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // 3. Akış Şeması Ayarları
+    ImGui::Text("📐 3. Akis Semasi Izgarasi (Flow Grid):");
+    ImGui::Checkbox("Arka Plan Izgarasini Goster (Show Grid)", &pm.showGrid);
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // 4. Lisans ve Fikri Mulkiyet Bilgisi
+    ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "🛡️ Lisans ve Gelistirici Bilgisi:");
+    ImGui::BulletText("Gelistirici: Mustafa Can Yilmazer (ElictryzDev)");
+    ImGui::BulletText("Kurum: Istanbul Beykent Universitesi - Bilgisayar Programciligi");
+    ImGui::BulletText("Lisans: Proprietary EULA (Tum Haklari Saklidir)");
+    ImGui::BulletText("Cikti Kodu: Ticari projelerde 'C-Algorithm' atfi ile kullanilabilir.");
 }
