@@ -267,6 +267,13 @@ bool ProjectManager::SaveProject() {
         out << n.id << "|" << (int)n.kind << "|" << n.title << "|" << n.x << "|" << n.y << "|" 
             << n.targetVar << "|" << (int)n.varType << "|" << n.expr << "|" << n.ioText << "|"
             << n.conditionExpr << "|" << n.loopInit << "|" << n.loopStep << "\n";
+        // Govde ifadelerini ayri satir olarak yaz (While/DoWhile icin)
+        if (!n.loopBodyStmts.empty()) {
+            out << "BODY_STMTS|" << n.id;
+            for (const auto& s : n.loopBodyStmts)
+                out << "|" << s;
+            out << "\n";
+        }
     }
 
     out << "[WIRES]\n";
@@ -308,6 +315,20 @@ bool ProjectManager::OpenProject(const std::string& fullPath) {
             std::string item;
             std::vector<std::string> tokens;
             while (std::getline(ss, item, '|')) tokens.push_back(item);
+
+            // BODY_STMTS satiri — Normal dugum satirina dokunma
+            if (!tokens.empty() && tokens[0] == "BODY_STMTS") {
+                if (tokens.size() >= 3) {
+                    int targetId = std::stoi(tokens[1]);
+                    FlowNode* bn = GetNode(targetId);
+                    if (bn) {
+                        bn->loopBodyStmts.clear();
+                        for (size_t ti = 2; ti < tokens.size(); ti++)
+                            bn->loopBodyStmts.push_back(tokens[ti]);
+                    }
+                }
+                continue; // Bu satiri dugum olarak isleme
+            }
 
             if (tokens.size() >= 9) {
                 int id = std::stoi(tokens[0]);
@@ -671,6 +692,11 @@ std::string ProjectManager::GenerateCppCode() {
                 ss << tabs << "while (" << n->conditionExpr << ") {\n";
                 int bodyNode = getTargetNode(curr, 1);
                 if (bodyNode > 0) generateChain(bodyNode, indent + 1);
+                // Inspector'dan eklenen gövde artış/atama satırları
+                for (const auto& stmt : n->loopBodyStmts) {
+                    if (!stmt.empty())
+                        ss << tabs << "    " << stmt << ";\n";
+                }
                 ss << tabs << "}\n\n";
                 curr = getTargetNode(curr, 2); // Dongu bitince completed pininden devam
             }
@@ -679,6 +705,11 @@ std::string ProjectManager::GenerateCppCode() {
                 ss << tabs << "do {\n";
                 int bodyNode = getTargetNode(curr, 1);
                 if (bodyNode > 0) generateChain(bodyNode, indent + 1);
+                // Inspector'dan eklenen gövde artış/atama satırları
+                for (const auto& stmt : n->loopBodyStmts) {
+                    if (!stmt.empty())
+                        ss << tabs << "    " << stmt << ";\n";
+                }
                 ss << tabs << "} while (" << n->conditionExpr << ");\n\n";
                 curr = getTargetNode(curr, 2); // Dongu bitince completed pininden devam
             }

@@ -1015,13 +1015,87 @@ void RenderInspectorPanel(ProjectManager& pm, int& selectedNodeId) {
                 if (ImGui::Button(isEn ? "+ Add Extra Assignment" : "+ Ek Atama Ekle")) {
                     n->multiAssignments.push_back({ "x", TypeKind::Int32, "0" });
                 }
-            } else if (n->kind == NodeKind::BranchIf || n->kind == NodeKind::LoopWhile || n->kind == NodeKind::LoopDoWhile) {
+            } else if (n->kind == NodeKind::LoopWhile || n->kind == NodeKind::LoopDoWhile) {
+                bool isDoWhile = (n->kind == NodeKind::LoopDoWhile);
+
+                // ── Koşul alanı ─────────────────────────────────────────
+                ImGui::TextColored(ImVec4(0.0f, 0.85f, 1.0f, 1.0f),
+                    isEn ? "1. Loop Condition:" : "1. Döngü Koşulu:");
+                char condBuf[128];
+                strncpy(condBuf, n->conditionExpr.c_str(), sizeof(condBuf));
+                if (ImGui::InputText(isEn ? "Condition" : "Koşul", condBuf, sizeof(condBuf))) {
+                    n->conditionExpr = condBuf;
+                }
+                ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f),
+                    isEn ? "Example: sayac < 10, hp > 0" : "Örnek: sayac < 10, hp > 0");
+
+                ImGui::Spacing();
+                ImGui::Separator();
+
+                // ── Gövde ifadeleri (sayac++, x *= 2, vb.) ──────────────
+                ImGui::TextColored(ImVec4(0.0f, 0.85f, 1.0f, 1.0f),
+                    isEn ? "2. Body Statements (inside { }):" : "2. Gövde İfadeleri ({ } içi):");
+                ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f),
+                    isEn ? "These run every loop iteration. e.g: sayac++, x = x + 1"
+                         : "Her turda çalışır. Örnek: sayac++, x = x + 1, toplam += i");
+
+                ImGui::Spacing();
+                for (int si = 0; si < (int)n->loopBodyStmts.size(); si++) {
+                    ImGui::PushID(si + 8000);
+                    char stmtBuf[128];
+                    strncpy(stmtBuf, n->loopBodyStmts[si].c_str(), sizeof(stmtBuf));
+                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 64);
+                    if (ImGui::InputText("##bodyStmt", stmtBuf, sizeof(stmtBuf))) {
+                        n->loopBodyStmts[si] = stmtBuf;
+                    }
+                    ImGui::SameLine();
+                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.7f, 0.15f, 0.15f, 1.0f));
+                    if (ImGui::SmallButton("X")) {
+                        n->loopBodyStmts.erase(n->loopBodyStmts.begin() + si);
+                        ImGui::PopStyleColor();
+                        ImGui::PopID();
+                        break;
+                    }
+                    ImGui::PopStyleColor();
+                    ImGui::PopID();
+                }
+
+                if (ImGui::Button(isEn ? "+ Add Body Statement" : "+ Gövde İfadesi Ekle",
+                                  ImVec2(-1, 28))) {
+                    n->loopBodyStmts.push_back(isDoWhile ? "sayac++" : "sayac++");
+                }
+
+                ImGui::Spacing();
+                // Özet önizleme
+                ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.02f, 0.03f, 0.04f, 1.0f));
+                ImGui::BeginChild("LoopPreview", ImVec2(0, 72), true);
+                if (isDoWhile) {
+                    ImGui::TextColored(ImVec4(0.5f, 0.9f, 0.5f, 1.0f), "do {");
+                } else {
+                    ImGui::TextColored(ImVec4(0.5f, 0.9f, 0.5f, 1.0f),
+                        "while (%s) {", n->conditionExpr.c_str());
+                }
+                ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "    // ... bagli dugumler ...");
+                for (const auto& s : n->loopBodyStmts)
+                    if (!s.empty())
+                        ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.6f, 1.0f), "    %s;", s.c_str());
+                if (isDoWhile)
+                    ImGui::TextColored(ImVec4(0.5f, 0.9f, 0.5f, 1.0f),
+                        "} while (%s);", n->conditionExpr.c_str());
+                else
+                    ImGui::TextColored(ImVec4(0.5f, 0.9f, 0.5f, 1.0f), "}");
+                ImGui::EndChild();
+                ImGui::PopStyleColor();
+            } else if (n->kind == NodeKind::BranchIf) {
+                ImGui::TextColored(ImVec4(0.0f, 0.85f, 1.0f, 1.0f),
+                    isEn ? "If / Else Condition:" : "Koşul (If / Else):");
                 char condBuf[128];
                 strncpy(condBuf, n->conditionExpr.c_str(), sizeof(condBuf));
                 if (ImGui::InputText(isEn ? "Condition" : "Mantıksal Koşul", condBuf, sizeof(condBuf))) {
                     n->conditionExpr = condBuf;
                 }
-                ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), isEn ? "Example: x < 10, hp <= 0" : "Örnek: x < 10, can <= 0, puan >= 100");
+                ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f),
+                    isEn ? "Example: x < 10, hp <= 0, puan >= 100" : "Örnek: x < 10, can <= 0, puan >= 100");
             } else if (n->kind == NodeKind::LoopFor) {
                 char initBuf[64];
                 strncpy(initBuf, n->loopInit.c_str(), sizeof(initBuf));
