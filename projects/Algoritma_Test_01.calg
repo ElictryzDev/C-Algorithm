@@ -1,0 +1,13 @@
+PROJECT_NAME=Algoritma_Test_01
+ADVISOR_DS=0
+ADVISOR_OP=0
+ADVISOR_COUNT=10000
+[NODES]
+1|0|Program Başlangıcı|0|170|x|0|0|Merhaba C-Algorithm!
+2|2|Değişken: can_puani|277|175|can_puani|5|100|Merhaba C-Algorithm!
+3|4|Ekrana Yazdır|527|175|x|0|0|Sistem Aktif! Mevcut Can: 100
+4|1|Program Sonu (return 0)|827|177|x|0|0|Merhaba C-Algorithm!
+[WIRES]
+1|1|0|2|0
+2|2|1|3|0
+3|3|1|4|0

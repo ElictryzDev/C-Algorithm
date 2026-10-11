@@ -1,0 +1,13 @@
+# Build Outputs
+*.exe
+*.obj
+*.pdb
+*.ilk
+*.suo
+*.user
+
+# Cache & OS files
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini
