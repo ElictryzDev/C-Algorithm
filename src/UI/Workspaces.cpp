@@ -82,36 +82,42 @@ void RenderProjectGatingModal(ProjectManager& pm) {
 
 // ── 2. Akis Semasi Grafigi (Flow Graph Workspace) ────────────────────────
 void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
+    bool isEn = (pm.currentLanguage == AppLanguage::English);
+
     ImGui::BeginChild("FlowToolbar", ImVec2(0, 44), true);
-    if (ImGui::Button("+ Degisken")) {
-        pm.AddNode(NodeKind::VariableDeclare, "Degisken Tanimla", 150, 150);
+    if (ImGui::Button(isEn ? "+ Variable" : "+ Değişken")) {
+        pm.AddNode(NodeKind::VariableDeclare, isEn ? "Variable Declare" : "Değişken Tanımla", 150, 150);
     }
     ImGui::SameLine();
-    if (ImGui::Button("+ Ata")) {
-        pm.AddNode(NodeKind::Assign, "Deger Ata", 250, 200);
+    if (ImGui::Button(isEn ? "+ Assign" : "+ Değer Ata")) {
+        pm.AddNode(NodeKind::Assign, isEn ? "Assign Value" : "Değer Ata", 250, 200);
     }
     ImGui::SameLine();
-    if (ImGui::Button("+ Ekrana Yaz (cout)")) {
-        pm.AddNode(NodeKind::Print, "Ekrana Yazdir", 350, 250);
+    if (ImGui::Button(isEn ? "+ Print (cout)" : "+ Yazdır (cout)")) {
+        pm.AddNode(NodeKind::Print, isEn ? "Print Output" : "Ekrana Yazdır", 350, 250);
     }
     ImGui::SameLine();
-    if (ImGui::Button("🔀 Kosul (If/Else)")) {
-        pm.AddNode(NodeKind::BranchIf, "Kosul (If/Else)", 400, 200);
+    if (ImGui::Button(isEn ? "Branch (If)" : "Koşul (If)")) {
+        pm.AddNode(NodeKind::BranchIf, isEn ? "Branch (If/Else)" : "Koşul (If/Else)", 400, 200);
     }
     ImGui::SameLine();
-    if (ImGui::Button("🔁 While")) {
-        pm.AddNode(NodeKind::LoopWhile, "While Dongusu", 450, 250);
+    if (ImGui::Button(isEn ? "Switch" : "Switch-Case")) {
+        pm.AddNode(NodeKind::SwitchCase, isEn ? "Switch Case" : "Switch-Case", 430, 220);
     }
     ImGui::SameLine();
-    if (ImGui::Button("🔁 Do-While")) {
-        pm.AddNode(NodeKind::LoopDoWhile, "Do-While Dongusu", 500, 280);
+    if (ImGui::Button("While")) {
+        pm.AddNode(NodeKind::LoopWhile, isEn ? "While Loop" : "While Döngüsü", 480, 250);
     }
     ImGui::SameLine();
-    if (ImGui::Button("🔢 For")) {
-        pm.AddNode(NodeKind::LoopFor, "For Dongusu", 550, 300);
+    if (ImGui::Button("Do-While")) {
+        pm.AddNode(NodeKind::LoopDoWhile, isEn ? "Do-While Loop" : "Do-While Döngüsü", 520, 280);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("For")) {
+        pm.AddNode(NodeKind::LoopFor, isEn ? "For Loop" : "For Döngüsü", 560, 300);
     }
     ImGui::SameLine(0, 20);
-    if (ImGui::Button("💾 Projeyi Kaydet")) {
+    if (ImGui::Button(isEn ? "Save Project" : "Projeyi Kaydet")) {
         pm.SaveProject();
     }
     ImGui::EndChild();
@@ -387,6 +393,9 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
         if (ImGui::MenuItem("Branch Condition (If/Else)")) {
             pm.AddNode(NodeKind::BranchIf, "Branch (If/Else)", contextMenuPos.x, contextMenuPos.y);
         }
+        if (ImGui::MenuItem("Switch Case")) {
+            pm.AddNode(NodeKind::SwitchCase, "Switch Case", contextMenuPos.x, contextMenuPos.y);
+        }
         if (ImGui::MenuItem("While Loop")) {
             pm.AddNode(NodeKind::LoopWhile, "While Loop", contextMenuPos.x, contextMenuPos.y);
         }
@@ -485,90 +494,117 @@ void RenderAdvisorWorkspace(ProjectManager& pm) {
 void RenderCodegenWorkspace(ProjectManager& pm) {
     std::string code = pm.GenerateCppCode();
 
+    bool isEn = (pm.currentLanguage == AppLanguage::English);
+
     ImGui::BeginChild("CodegenBar", ImVec2(0, 42), true);
-    if (ImGui::Button("📋 Panoya Kopyala (Copy Code)")) {
+    if (ImGui::Button(isEn ? "Copy to Clipboard" : "Panoya Kopyala")) {
         ImGui::SetClipboardText(code.c_str());
-        pm.statusMessage = "C++ Kodu panoya kopyalandi!";
+        pm.statusMessage = isEn ? "C++ Code copied to clipboard!" : "C++ Kodu panoya kopyalandi!";
     }
     ImGui::SameLine();
-    ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "C++17 Standartlarinda Derlenebilir Kod");
+    ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), isEn ? "Compilable C++17 Standard Code" : "C++17 Standartlarinda Derlenebilir Kod");
     ImGui::EndChild();
 
     ImGui::BeginChild("CodegenView", ImVec2(0, 0), true);
-    ImGui::InputTextMultiline("##cppsrc", (char*)code.c_str(), code.size(), ImVec2(-1, -1), ImGuiInputTextFlags_ReadOnly);
+    // Null-terminator guvenligi: code.size() + 1
+    ImGui::InputTextMultiline("##cppsrc", (char*)code.c_str(), code.size() + 1, ImVec2(-1, -1), ImGuiInputTextFlags_ReadOnly);
     ImGui::EndChild();
 }
 
 // ── 5. Inspector Panel ───────────────────────────────────────────────────
 void RenderInspectorPanel(ProjectManager& pm, int& selectedNodeId) {
-    ImGui::TextColored(ImVec4(0, 0.85f, 1.0f, 1.0f), "🔍 DUGUM OZELLIKLERI");
+    bool isEn = (pm.currentLanguage == AppLanguage::English);
+
+    ImGui::TextColored(ImVec4(0, 0.85f, 1.0f, 1.0f), isEn ? "NODE INSPECTOR" : "DÜĞÜM ÖZELLİKLERİ");
     ImGui::Separator();
 
     if (selectedNodeId > 0) {
         FlowNode* n = pm.GetNode(selectedNodeId);
         if (n) {
-            ImGui::Text("Dugum: #%d (%s)", n->id, n->title.c_str());
+            ImGui::Text(isEn ? "Node: #%d (%s)" : "Düğüm: #%d (%s)", n->id, n->title.c_str());
 
             if (n->kind == NodeKind::VariableDeclare) {
                 char vName[64];
                 strncpy(vName, n->targetVar.c_str(), sizeof(vName));
-                if (ImGui::InputText("Degisken Adi", vName, sizeof(vName))) {
+                if (ImGui::InputText(isEn ? "Variable Name" : "Değişken Adı", vName, sizeof(vName))) {
                     n->targetVar = vName;
                 }
 
                 // Tip Secici (Zengin Tipler)
                 const char* typeNames[] = { "int (Int32)", "long long (Int64)", "float", "double", "bool", "uint8_t (0-255)", "uint16_t", "uint32_t", "uint64_t", "std::string" };
                 int currentType = (int)n->varType;
-                if (ImGui::Combo("Veri Turu", &currentType, typeNames, IM_ARRAYSIZE(typeNames))) {
+                if (ImGui::Combo(isEn ? "Data Type" : "Veri Türü", &currentType, typeNames, IM_ARRAYSIZE(typeNames))) {
                     n->varType = (TypeKind)currentType;
                 }
 
                 char valBuf[64];
                 strncpy(valBuf, n->expr.c_str(), sizeof(valBuf));
-                if (ImGui::InputText("Baslangic Degeri", valBuf, sizeof(valBuf))) {
+                if (ImGui::InputText(isEn ? "Initial Value" : "Başlangıç Değeri", valBuf, sizeof(valBuf))) {
                     n->expr = valBuf;
                 }
             } else if (n->kind == NodeKind::Print) {
                 char textBuf[128];
                 strncpy(textBuf, n->ioText.c_str(), sizeof(textBuf));
-                if (ImGui::InputText("Yazdirilacak Metin", textBuf, sizeof(textBuf))) {
+                if (ImGui::InputText(isEn ? "Text to Print" : "Yazdırılacak Metin", textBuf, sizeof(textBuf))) {
                     n->ioText = textBuf;
                 }
             } else if (n->kind == NodeKind::Assign) {
                 char varBuf[64];
                 strncpy(varBuf, n->targetVar.c_str(), sizeof(varBuf));
-                if (ImGui::InputText("Hedef Degisken", varBuf, sizeof(varBuf))) {
+                if (ImGui::InputText(isEn ? "Target Variable" : "Hedef Değişken", varBuf, sizeof(varBuf))) {
                     n->targetVar = varBuf;
                 }
                 char exprBuf[64];
                 strncpy(exprBuf, n->expr.c_str(), sizeof(exprBuf));
-                if (ImGui::InputText("Atanacak Deger / Ifade", exprBuf, sizeof(exprBuf))) {
+                if (ImGui::InputText(isEn ? "Value / Expression" : "Atanacak Değer / İfade", exprBuf, sizeof(exprBuf))) {
                     n->expr = exprBuf;
                 }
             } else if (n->kind == NodeKind::BranchIf || n->kind == NodeKind::LoopWhile || n->kind == NodeKind::LoopDoWhile) {
                 char condBuf[128];
                 strncpy(condBuf, n->conditionExpr.c_str(), sizeof(condBuf));
-                if (ImGui::InputText("Mantiksal Kosul (Condition)", condBuf, sizeof(condBuf))) {
+                if (ImGui::InputText(isEn ? "Condition" : "Mantıksal Koşul", condBuf, sizeof(condBuf))) {
                     n->conditionExpr = condBuf;
                 }
-                ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "Ornek: x < 10, can <= 0, puan >= 100");
+                ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), isEn ? "Example: x < 10, hp <= 0" : "Örnek: x < 10, can <= 0, puan >= 100");
             } else if (n->kind == NodeKind::LoopFor) {
                 char initBuf[64];
                 strncpy(initBuf, n->loopInit.c_str(), sizeof(initBuf));
-                if (ImGui::InputText("Baslangic (Init)", initBuf, sizeof(initBuf))) {
+                if (ImGui::InputText(isEn ? "Init" : "Başlangıç (Init)", initBuf, sizeof(initBuf))) {
                     n->loopInit = initBuf;
                 }
                 char condBuf[128];
                 strncpy(condBuf, n->conditionExpr.c_str(), sizeof(condBuf));
-                if (ImGui::InputText("Kosul (Condition)", condBuf, sizeof(condBuf))) {
+                if (ImGui::InputText(isEn ? "Condition" : "Koşul (Condition)", condBuf, sizeof(condBuf))) {
                     n->conditionExpr = condBuf;
                 }
                 char stepBuf[64];
                 strncpy(stepBuf, n->loopStep.c_str(), sizeof(stepBuf));
-                if (ImGui::InputText("Artis (Step)", stepBuf, sizeof(stepBuf))) {
+                if (ImGui::InputText(isEn ? "Step" : "Artış (Step)", stepBuf, sizeof(stepBuf))) {
                     n->loopStep = stepBuf;
                 }
-                ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "Ornek: int i = 0; i < 10; i++");
+            } else if (n->kind == NodeKind::SwitchCase) {
+                char swBuf[64];
+                strncpy(swBuf, n->switchVar.c_str(), sizeof(swBuf));
+                if (ImGui::InputText(isEn ? "Switch Variable" : "Değerlendirilecek Değişken", swBuf, sizeof(swBuf))) {
+                    n->switchVar = swBuf;
+                }
+                ImGui::Spacing();
+                ImGui::Text(isEn ? "Cases (Branches):" : "Durumlar (Case Dalları):");
+                if (n->caseValues.size() > 0) {
+                    char c1Buf[32];
+                    strncpy(c1Buf, n->caseValues[0].c_str(), sizeof(c1Buf));
+                    if (ImGui::InputText("Case 1 Değeri", c1Buf, sizeof(c1Buf))) {
+                        n->caseValues[0] = c1Buf;
+                    }
+                }
+                if (n->caseValues.size() > 1) {
+                    char c2Buf[32];
+                    strncpy(c2Buf, n->caseValues[1].c_str(), sizeof(c2Buf));
+                    if (ImGui::InputText("Case 2 Değeri", c2Buf, sizeof(c2Buf))) {
+                        n->caseValues[1] = c2Buf;
+                    }
+                }
+                ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), isEn ? "Default and Completed pins are built-in." : "Default ve Bitti pinleri entegredir.");
             }
 
             ImGui::Spacing();
@@ -579,14 +615,14 @@ void RenderInspectorPanel(ProjectManager& pm, int& selectedNodeId) {
             ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
             ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.95f, 0.25f, 0.25f, 1.0f));
             ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.6f, 0.1f, 0.1f, 1.0f));
-            if (ImGui::Button("🗑 Dugumu Sil (Delete Node)", ImVec2(-1, 32))) {
+            if (ImGui::Button(isEn ? "Delete Node" : "Düğümü Sil", ImVec2(-1, 32))) {
                 pm.DeleteNode(selectedNodeId);
                 selectedNodeId = 0;
             }
             ImGui::PopStyleColor(3);
         }
     } else {
-        ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "Duzenlemek icin akistan bir dugume tiklayin.");
+        ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), isEn ? "Click on a node in the graph to inspect." : "Düzenlemek için akıştan bir düğüme tıklayın.");
     }
 }
 
@@ -617,18 +653,20 @@ void ApplyAppTheme(AppTheme theme) {
 
 // ── 7. Ayarlar Sekmesi (Settings Workspace) ──────────────────────────────
 void RenderSettingsWorkspace(ProjectManager& pm) {
-    ImGui::TextColored(ImVec4(0, 0.85f, 1.0f, 1.0f), "⚙️ IDE AYARLARI & GORUNUM (SETTINGS)");
-    ImGui::TextColored(ImVec4(0.6f, 0.65f, 0.75f, 1.0f), "Dil secenekleri, tema renkleri ve cizim alani ozellestirmeleri.");
+    bool isEn = (pm.currentLanguage == AppLanguage::English);
+
+    ImGui::TextColored(ImVec4(0, 0.85f, 1.0f, 1.0f), isEn ? "IDE SETTINGS & APPEARANCE" : "IDE AYARLARI VE GÖRÜNÜM");
+    ImGui::TextColored(ImVec4(0.6f, 0.65f, 0.75f, 1.0f), isEn ? "Configure language, color themes, and canvas layout." : "Dil seçenekleri, tema renkleri ve çizim alanı özelleştirmeleri.");
     ImGui::Separator();
     ImGui::Spacing();
 
     // 1. Dil Ayarı (Language)
-    ImGui::Text("🌐 1. Dil Secimi (Interface Language):");
-    const char* langNames[] = { "Turkce (Turkish)", "English" };
+    ImGui::Text(isEn ? "1. Interface Language:" : "1. Arayüz Dili:");
+    const char* langNames[] = { "Türkçe (Turkish)", "English" };
     int curLang = (int)pm.currentLanguage;
     if (ImGui::Combo("##lang", &curLang, langNames, IM_ARRAYSIZE(langNames))) {
         pm.currentLanguage = (AppLanguage)curLang;
-        pm.statusMessage = (curLang == 0) ? "Dil Turkce olarak ayarlandi." : "Language set to English.";
+        pm.statusMessage = (curLang == 0) ? "Dil Türkçe olarak ayarlandı." : "Language set to English.";
     }
 
     ImGui::Spacing();
@@ -636,13 +674,13 @@ void RenderSettingsWorkspace(ProjectManager& pm) {
     ImGui::Spacing();
 
     // 2. Tema Ayarı (Theme)
-    ImGui::Text("🎨 2. Arayuz Temasi (Color Theme):");
-    const char* themeNames[] = { "OLED Siyah & Turkuaz (OLED Dark)", "Klasik Koyu (Classic Dark)", "Acik Tema (Light Theme)" };
+    ImGui::Text(isEn ? "2. Color Theme:" : "2. Arayüz Teması:");
+    const char* themeNames[] = { "OLED Siyah & Turkuaz (OLED Dark)", "Klasik Koyu (Classic Dark)", "Açık Tema (Light Theme)" };
     int curTheme = (int)pm.currentTheme;
     if (ImGui::Combo("##theme", &curTheme, themeNames, IM_ARRAYSIZE(themeNames))) {
         pm.currentTheme = (AppTheme)curTheme;
         ApplyAppTheme(pm.currentTheme);
-        pm.statusMessage = "Tema guncellendi.";
+        pm.statusMessage = isEn ? "Theme updated." : "Tema güncellendi.";
     }
 
     ImGui::Spacing();
@@ -650,8 +688,8 @@ void RenderSettingsWorkspace(ProjectManager& pm) {
     ImGui::Spacing();
 
     // 3. Akış Şeması Ayarları
-    ImGui::Text("📐 3. Akis Semasi Izgarasi (Flow Grid):");
-    ImGui::Checkbox("Arka Plan Izgarasini Goster (Show Grid)", &pm.showGrid);
+    ImGui::Text(isEn ? "3. Flow Graph Grid:" : "3. Akış Şeması Izgarası:");
+    ImGui::Checkbox(isEn ? "Show Background Grid" : "Arka Plan Izgarasını Göster", &pm.showGrid);
 
     ImGui::Spacing();
     ImGui::Separator();

@@ -89,6 +89,14 @@ FlowNode* ProjectManager::AddNode(NodeKind kind, const std::string& title, float
             node.pins.push_back({ 1, "Govde (Body)", PinType::ExecOut, PinShape::Triangle, node.width - 12.0f, 45.0f });
             node.pins.push_back({ 2, "Bitti (Exit)", PinType::ExecOut, PinShape::Triangle, node.width - 12.0f, 80.0f });
             break;
+        case NodeKind::SwitchCase:
+            node.height = 150.0f;
+            node.pins.push_back({ 0, "Giris", PinType::ExecIn, PinShape::Triangle, 12.0f, 45.0f });
+            node.pins.push_back({ 1, "Case 1", PinType::ExecOut, PinShape::Diamond, node.width - 12.0f, 45.0f });
+            node.pins.push_back({ 2, "Case 2", PinType::ExecOut, PinShape::Diamond, node.width - 12.0f, 75.0f });
+            node.pins.push_back({ 3, "Default", PinType::ExecOut, PinShape::Diamond, node.width - 12.0f, 105.0f });
+            node.pins.push_back({ 4, "Bitti (Exit)", PinType::ExecOut, PinShape::Triangle, node.width - 12.0f, 135.0f });
+            break;
         default:
             node.pins.push_back({ 0, "Giris", PinType::ExecIn, PinShape::Triangle, 12.0f, 45.0f });
             node.pins.push_back({ 1, "Cikis", PinType::ExecOut, PinShape::Triangle, node.width - 12.0f, 45.0f });
@@ -443,6 +451,34 @@ std::string ProjectManager::GenerateCppCode() {
                 if (bodyNode > 0) generateChain(bodyNode, indent + 1);
                 ss << tabs << "}\n\n";
                 curr = getTargetNode(curr, 2); // Dongu bitince completed pininden devam
+            }
+            else if (n->kind == NodeKind::SwitchCase) {
+                ss << tabs << "// Switch-Case Coklu Karar Yapisi\n";
+                ss << tabs << "switch (" << n->switchVar << ") {\n";
+                
+                // Case 1
+                ss << tabs << "    case " << (n->caseValues.size() > 0 ? n->caseValues[0] : "1") << ": {\n";
+                int case1Node = getTargetNode(curr, 1);
+                if (case1Node > 0) generateChain(case1Node, indent + 2);
+                ss << tabs << "        break;\n";
+                ss << tabs << "    }\n";
+
+                // Case 2
+                ss << tabs << "    case " << (n->caseValues.size() > 1 ? n->caseValues[1] : "2") << ": {\n";
+                int case2Node = getTargetNode(curr, 2);
+                if (case2Node > 0) generateChain(case2Node, indent + 2);
+                ss << tabs << "        break;\n";
+                ss << tabs << "    }\n";
+
+                // Default
+                ss << tabs << "    default: {\n";
+                int defNode = getTargetNode(curr, 3);
+                if (defNode > 0) generateChain(defNode, indent + 2);
+                ss << tabs << "        break;\n";
+                ss << tabs << "    }\n";
+
+                ss << tabs << "}\n\n";
+                curr = getTargetNode(curr, 4); // Switch bitince Exit pininden devam
             }
             else if (n->kind == NodeKind::End) {
                 break;

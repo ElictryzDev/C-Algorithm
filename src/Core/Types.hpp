@@ -81,7 +81,8 @@ enum class NodeKind {
     BranchIf,           // Kosul (if/else)
     LoopWhile,          // While Dongusu
     LoopDoWhile,        // Do-While Dongusu
-    LoopFor             // For Dongusu
+    LoopFor,            // For Dongusu
+    SwitchCase          // Switch-Case Coklu Karar Yapisi
 };
 
 enum class PinShape {
@@ -117,10 +118,14 @@ struct FlowNode {
     std::string loopInit = "int i = 0";    // For baslangic
     std::string loopStep = "i++";          // For artis
 
+    // Switch-Case Ayarlari
+    std::string switchVar = "secim";
+    std::vector<std::string> caseValues = { "1", "2" }; // Case durumlari
+
     float x = 80.0f;
     float y = 80.0f;
-    float width = 210.0f;
-    float height = 100.0f;
+    float width = 220.0f;
+    float height = 110.0f;
     std::vector<FlowPin> pins;
 };
 
