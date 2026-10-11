@@ -3,15 +3,17 @@
 
 // ── 1. Proje Karsilama Ekrani (Project Gating) ───────────────────────────
 void RenderProjectGatingModal(ProjectManager& pm) {
+    bool isEn = (pm.currentLanguage == AppLanguage::English);
+
     ImVec2 center = ImGui::GetMainViewport()->GetCenter();
     ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
     ImGui::SetNextWindowSize(ImVec2(620, 480));
 
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
-    ImGui::Begin("C-ALGORITHM — PROJE GIRIS PANELI", nullptr, flags);
+    ImGui::Begin(isEn ? "C-ALGORITHM — PROJECT GATEWAY" : "C-ALGORITHM — PROJE GİRİŞ PANELİ", nullptr, flags);
 
-    ImGui::TextColored(ImVec4(0, 0.85f, 1.0f, 1.0f), "⚡ C-ALGORITHM NATIVE IDE'YE HOS GELDINIZ");
-    ImGui::TextColored(ImVec4(0.6f, 0.65f, 0.75f, 1.0f), "Devam etmek icin lutfen bir proje secin veya yeni bir proje olusturun.");
+    ImGui::TextColored(ImVec4(0, 0.85f, 1.0f, 1.0f), isEn ? "WELCOME TO C-ALGORITHM NATIVE IDE" : "C-ALGORITHM NATIVE IDE'YE HOŞ GELDİNİZ");
+    ImGui::TextColored(ImVec4(0.6f, 0.65f, 0.75f, 1.0f), isEn ? "Select an existing project or create a new one to continue." : "Devam etmek için lütfen bir proje seçin veya yeni bir proje oluşturun.");
     ImGui::Separator();
     ImGui::Spacing();
 
@@ -20,26 +22,26 @@ void RenderProjectGatingModal(ProjectManager& pm) {
 
     // Sekmeler: Yeni Proje / Var Olani Ac
     if (ImGui::BeginTabBar("GatingTabs")) {
-        if (ImGui::BeginTabItem("➕ Yeni Proje Olustur")) {
+        if (ImGui::BeginTabItem(isEn ? "Create New Project" : "Yeni Proje Oluştur")) {
             ImGui::Spacing();
-            ImGui::Text("Proje Adi:");
+            ImGui::Text(isEn ? "Project Name:" : "Proje Adı:");
             ImGui::InputText("##pname", newProjName, sizeof(newProjName));
 
             ImGui::Spacing();
-            ImGui::TextColored(ImVec4(0.5f, 0.7f, 0.9f, 1.0f), "Kayit Konumu: Desktop/C-Algorithm/projects/%s.calg", newProjName);
+            ImGui::TextColored(ImVec4(0.5f, 0.7f, 0.9f, 1.0f), isEn ? "Save Path: Desktop/C-Algorithm/projects/%s.calg" : "Kayıt Konumu: Desktop/C-Algorithm/projects/%s.calg", newProjName);
             ImGui::Spacing();
 
-            if (ImGui::Button("🚀 Projeyi Olustur ve Basla", ImVec2(240, 42))) {
+            if (ImGui::Button(isEn ? "Create Project & Start" : "Projeyi Oluştur ve Başla", ImVec2(240, 42))) {
                 pm.CreateNewProject(newProjName, "C:/Users/ASUS TUF GAMING/Desktop/C-Algorithm/projects");
             }
             ImGui::EndTabItem();
         }
 
-        if (ImGui::BeginTabItem("📂 Kayitli Projeleri Listele & Ac")) {
+        if (ImGui::BeginTabItem(isEn ? "List & Open Saved Projects" : "Kayıtlı Projeleri Listele ve Aç")) {
             ImGui::Spacing();
             std::vector<std::string> savedFiles = pm.GetSavedProjectFiles("C:/Users/ASUS TUF GAMING/Desktop/C-Algorithm/projects");
 
-            ImGui::Text("Bulunan Projeler (%d adet):", (int)savedFiles.size());
+            ImGui::Text(isEn ? "Found Projects (%d total):" : "Bulunan Projeler (%d adet):", (int)savedFiles.size());
 
             if (ImGui::BeginListBox("##savedProjList", ImVec2(-1, 160))) {
                 for (size_t i = 0; i < savedFiles.size(); i++) {
@@ -56,7 +58,7 @@ void RenderProjectGatingModal(ProjectManager& pm) {
             }
 
             ImGui::Spacing();
-            ImGui::Text("Secilen Dosya:");
+            ImGui::Text(isEn ? "Selected File:" : "Seçilen Dosya:");
             ImGui::InputText("##selectedPath", openFilePath, sizeof(openFilePath));
 
             ImGui::Spacing();
@@ -530,7 +532,6 @@ void RenderInspectorPanel(ProjectManager& pm, int& selectedNodeId) {
                     n->targetVar = vName;
                 }
 
-                // Tip Secici (Zengin Tipler)
                 const char* typeNames[] = { "int (Int32)", "long long (Int64)", "float", "double", "bool", "uint8_t (0-255)", "uint16_t", "uint32_t", "uint64_t", "std::string" };
                 int currentType = (int)n->varType;
                 if (ImGui::Combo(isEn ? "Data Type" : "Veri Türü", &currentType, typeNames, IM_ARRAYSIZE(typeNames))) {
@@ -541,6 +542,39 @@ void RenderInspectorPanel(ProjectManager& pm, int& selectedNodeId) {
                 strncpy(valBuf, n->expr.c_str(), sizeof(valBuf));
                 if (ImGui::InputText(isEn ? "Initial Value" : "Başlangıç Değeri", valBuf, sizeof(valBuf))) {
                     n->expr = valBuf;
+                }
+
+                ImGui::Spacing();
+                ImGui::Separator();
+                ImGui::TextColored(ImVec4(0, 0.85f, 1.0f, 1.0f), isEn ? "Extra Variables in this Node:" : "Bu Düğümdeki Ek Değişkenler:");
+
+                for (size_t i = 0; i < n->multiAssignments.size(); i++) {
+                    ImGui::PushID((int)i);
+                    char extraName[64];
+                    strncpy(extraName, n->multiAssignments[i].varName.c_str(), sizeof(extraName));
+                    if (ImGui::InputText(isEn ? "Name" : "Ad", extraName, sizeof(extraName))) {
+                        n->multiAssignments[i].varName = extraName;
+                    }
+                    int eType = (int)n->multiAssignments[i].varType;
+                    if (ImGui::Combo(isEn ? "Type" : "Tür", &eType, typeNames, IM_ARRAYSIZE(typeNames))) {
+                        n->multiAssignments[i].varType = (TypeKind)eType;
+                    }
+                    char extraVal[64];
+                    strncpy(extraVal, n->multiAssignments[i].valueExpr.c_str(), sizeof(extraVal));
+                    if (ImGui::InputText(isEn ? "Value" : "Değer", extraVal, sizeof(extraVal))) {
+                        n->multiAssignments[i].valueExpr = extraVal;
+                    }
+                    if (ImGui::Button(isEn ? "Remove Variable" : "Değişkeni Kaldır")) {
+                        n->multiAssignments.erase(n->multiAssignments.begin() + i);
+                        ImGui::PopID();
+                        break;
+                    }
+                    ImGui::Separator();
+                    ImGui::PopID();
+                }
+
+                if (ImGui::Button(isEn ? "+ Add Extra Variable" : "+ Ek Değişken Ekle")) {
+                    n->multiAssignments.push_back({ "var_" + std::to_string(n->multiAssignments.size() + 1), TypeKind::Int32, "0" });
                 }
             } else if (n->kind == NodeKind::Print) {
                 char textBuf[128];
@@ -558,6 +592,35 @@ void RenderInspectorPanel(ProjectManager& pm, int& selectedNodeId) {
                 strncpy(exprBuf, n->expr.c_str(), sizeof(exprBuf));
                 if (ImGui::InputText(isEn ? "Value / Expression" : "Atanacak Değer / İfade", exprBuf, sizeof(exprBuf))) {
                     n->expr = exprBuf;
+                }
+
+                ImGui::Spacing();
+                ImGui::Separator();
+                ImGui::TextColored(ImVec4(0, 0.85f, 1.0f, 1.0f), isEn ? "Extra Assignments in this Node:" : "Bu Düğümdeki Ek Atamalar:");
+
+                for (size_t i = 0; i < n->multiAssignments.size(); i++) {
+                    ImGui::PushID((int)(100 + i));
+                    char extraName[64];
+                    strncpy(extraName, n->multiAssignments[i].varName.c_str(), sizeof(extraName));
+                    if (ImGui::InputText(isEn ? "Variable" : "Değişken", extraName, sizeof(extraName))) {
+                        n->multiAssignments[i].varName = extraName;
+                    }
+                    char extraVal[64];
+                    strncpy(extraVal, n->multiAssignments[i].valueExpr.c_str(), sizeof(extraVal));
+                    if (ImGui::InputText(isEn ? "New Value" : "Yeni Değer", extraVal, sizeof(extraVal))) {
+                        n->multiAssignments[i].valueExpr = extraVal;
+                    }
+                    if (ImGui::Button(isEn ? "Remove Assignment" : "Atamayı Kaldır")) {
+                        n->multiAssignments.erase(n->multiAssignments.begin() + i);
+                        ImGui::PopID();
+                        break;
+                    }
+                    ImGui::Separator();
+                    ImGui::PopID();
+                }
+
+                if (ImGui::Button(isEn ? "+ Add Extra Assignment" : "+ Ek Atama Ekle")) {
+                    n->multiAssignments.push_back({ "x", TypeKind::Int32, "0" });
                 }
             } else if (n->kind == NodeKind::BranchIf || n->kind == NodeKind::LoopWhile || n->kind == NodeKind::LoopDoWhile) {
                 char condBuf[128];
@@ -644,6 +707,30 @@ void ApplyAppTheme(AppTheme theme) {
         colors[ImGuiCol_Tab]                = ImVec4(0.07f, 0.10f, 0.14f, 1.00f);
         colors[ImGuiCol_TabHovered]         = ImVec4(0.00f, 0.70f, 0.95f, 0.80f);
         colors[ImGuiCol_TabActive]          = ImVec4(0.00f, 0.55f, 0.80f, 1.00f);
+    } else if (theme == AppTheme::Dracula) {
+        ImGui::StyleColorsDark();
+        colors[ImGuiCol_WindowBg]           = ImVec4(0.16f, 0.16f, 0.21f, 1.00f);
+        colors[ImGuiCol_Header]             = ImVec4(0.38f, 0.31f, 0.55f, 1.00f);
+        colors[ImGuiCol_HeaderHovered]      = ImVec4(0.74f, 0.46f, 0.88f, 0.80f);
+        colors[ImGuiCol_Button]             = ImVec4(0.24f, 0.25f, 0.34f, 1.00f);
+        colors[ImGuiCol_ButtonHovered]      = ImVec4(0.55f, 0.45f, 0.75f, 1.00f);
+        colors[ImGuiCol_ButtonActive]       = ImVec4(0.40f, 0.30f, 0.60f, 1.00f);
+        colors[ImGuiCol_FrameBg]            = ImVec4(0.20f, 0.21f, 0.28f, 1.00f);
+        colors[ImGuiCol_Tab]                = ImVec4(0.18f, 0.19f, 0.25f, 1.00f);
+        colors[ImGuiCol_TabHovered]         = ImVec4(0.74f, 0.46f, 0.88f, 0.80f);
+        colors[ImGuiCol_TabActive]          = ImVec4(0.55f, 0.45f, 0.75f, 1.00f);
+    } else if (theme == AppTheme::Cyberpunk) {
+        ImGui::StyleColorsDark();
+        colors[ImGuiCol_WindowBg]           = ImVec4(0.05f, 0.02f, 0.09f, 1.00f);
+        colors[ImGuiCol_Header]             = ImVec4(0.85f, 0.00f, 0.55f, 0.70f);
+        colors[ImGuiCol_HeaderHovered]      = ImVec4(1.00f, 0.80f, 0.00f, 0.80f);
+        colors[ImGuiCol_Button]             = ImVec4(0.30f, 0.05f, 0.35f, 1.00f);
+        colors[ImGuiCol_ButtonHovered]      = ImVec4(0.95f, 0.10f, 0.55f, 1.00f);
+        colors[ImGuiCol_ButtonActive]       = ImVec4(1.00f, 0.85f, 0.00f, 1.00f);
+        colors[ImGuiCol_FrameBg]            = ImVec4(0.15f, 0.05f, 0.20f, 1.00f);
+        colors[ImGuiCol_Tab]                = ImVec4(0.18f, 0.05f, 0.22f, 1.00f);
+        colors[ImGuiCol_TabHovered]         = ImVec4(0.95f, 0.10f, 0.55f, 0.80f);
+        colors[ImGuiCol_TabActive]          = ImVec4(0.80f, 0.00f, 0.50f, 1.00f);
     } else if (theme == AppTheme::ClassicDark) {
         ImGui::StyleColorsDark();
     } else if (theme == AppTheme::Light) {
@@ -651,7 +738,70 @@ void ApplyAppTheme(AppTheme theme) {
     }
 }
 
-// ── 7. Ayarlar Sekmesi (Settings Workspace) ──────────────────────────────
+// ── 7. Gelismis Konsol Cikti Tasarimcisi (Custom Print Scene) ─────────────
+void RenderCustomPrintScene(ProjectManager& pm) {
+    bool isEn = (pm.currentLanguage == AppLanguage::English);
+
+    ImGui::TextColored(ImVec4(0, 0.85f, 1.0f, 1.0f), isEn ? "CUSTOM CONSOLE OUTPUT DESIGNER" : "GELİŞMİŞ KONSOL ÇIKTI TASARIMCISI");
+    ImGui::TextColored(ImVec4(0.6f, 0.65f, 0.75f, 1.0f), isEn ? "Design framed messages, banners, and formatted console layouts." : "Konsol için çerçeveli menüler, ASCII başlıklar ve süslü çıktılar tasarlayın.");
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    static char customMsg[256] = "SISTEM BASARIYLA CALISIYOR";
+    static int borderStyle = 0; // 0: Single, 1: Double, 2: Star, 3: Hash
+
+    ImGui::Text(isEn ? "Message Content:" : "Mesaj İçeriği:");
+    ImGui::InputText("##custMsg", customMsg, sizeof(customMsg));
+
+    ImGui::Spacing();
+    ImGui::Text(isEn ? "Frame Style:" : "Çerçeve Stili:");
+    const char* styles[] = { "Tek Cizgi (Single: +---+)", "Cift Cizgi (Double: #===#)", "Yildizli (Stars: *---*)", "Kare Kutusu (Bracket: [---])" };
+    ImGui::Combo("##bStyle", &borderStyle, styles, IM_ARRAYSIZE(styles));
+
+    // Canlı Konsol Önizlemesi Oluştur
+    std::string line1, line2, line3;
+    int len = (int)strlen(customMsg) + 4;
+    if (borderStyle == 0) {
+        line1 = "+" + std::string(len, '-') + "+";
+        line2 = "|  " + std::string(customMsg) + "  |";
+        line3 = "+" + std::string(len, '-') + "+";
+    } else if (borderStyle == 1) {
+        line1 = "#" + std::string(len, '=') + "#";
+        line2 = "#  " + std::string(customMsg) + "  #";
+        line3 = "#" + std::string(len, '=') + "#";
+    } else if (borderStyle == 2) {
+        line1 = "*" + std::string(len, '-') + "*";
+        line2 = "*  " + std::string(customMsg) + "  *";
+        line3 = "*" + std::string(len, '-') + "*";
+    } else {
+        line1 = "[" + std::string(len, '=') + "]";
+        line2 = "[  " + std::string(customMsg) + "  ]";
+        line3 = "[" + std::string(len, '=') + "]";
+    }
+
+    ImGui::Spacing();
+    ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), isEn ? "Console Live Preview:" : "Canlı Konsol Önizlemesi:");
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.01f, 0.02f, 0.03f, 1.0f));
+    ImGui::BeginChild("PrintPreviewBox", ImVec2(0, 110), true);
+    ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.6f, 1.0f), "%s\n%s\n%s", line1.c_str(), line2.c_str(), line3.c_str());
+    ImGui::EndChild();
+    ImGui::PopStyleColor();
+
+    ImGui::Spacing();
+    if (ImGui::Button(isEn ? "+ Spawn Framed Print Node to Graph" : "+ Bu Çerçeveli Yazıyı Grafiğe Düğüm Olarak Ekle", ImVec2(340, 40))) {
+        FlowNode* n1 = pm.AddNode(NodeKind::Print, "Frame Top", 400, 200);
+        n1->ioText = line1;
+        FlowNode* n2 = pm.AddNode(NodeKind::Print, "Frame Content", 400, 310);
+        n2->ioText = line2;
+        FlowNode* n3 = pm.AddNode(NodeKind::Print, "Frame Bottom", 400, 420);
+        n3->ioText = line3;
+        pm.ConnectPins(n1->id, 1, n2->id, 0);
+        pm.ConnectPins(n2->id, 1, n3->id, 0);
+        pm.statusMessage = isEn ? "Framed print node chain spawned!" : "Çerçeveli çıktı düğüm zinciri eklendi!";
+    }
+}
+
+// ── 8. Ayarlar Sekmesi (Settings Workspace) ──────────────────────────────
 void RenderSettingsWorkspace(ProjectManager& pm) {
     bool isEn = (pm.currentLanguage == AppLanguage::English);
 
@@ -675,7 +825,7 @@ void RenderSettingsWorkspace(ProjectManager& pm) {
 
     // 2. Tema Ayarı (Theme)
     ImGui::Text(isEn ? "2. Color Theme:" : "2. Arayüz Teması:");
-    const char* themeNames[] = { "OLED Siyah & Turkuaz (OLED Dark)", "Klasik Koyu (Classic Dark)", "Açık Tema (Light Theme)" };
+    const char* themeNames[] = { "OLED Siyah & Turkuaz", "Klasik Koyu (Classic Dark)", "Dracula (Mor & Lavanta)", "Cyberpunk (Neon Pembe)", "Açık Tema (Light Theme)" };
     int curTheme = (int)pm.currentTheme;
     if (ImGui::Combo("##theme", &curTheme, themeNames, IM_ARRAYSIZE(themeNames))) {
         pm.currentTheme = (AppTheme)curTheme;

@@ -12,6 +12,8 @@ enum class AppLanguage {
 enum class AppTheme {
     OledDark,
     ClassicDark,
+    Dracula,
+    Cyberpunk,
     Light
 };
 

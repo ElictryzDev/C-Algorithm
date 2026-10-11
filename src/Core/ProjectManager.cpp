@@ -399,12 +399,19 @@ std::string ProjectManager::GenerateCppCode() {
             if (n->kind == NodeKind::VariableDeclare) {
                 ss << tabs << "// Degisken Tanimlama (" << n->targetVar << ")\n";
                 ss << tabs << TypeKindToString(n->varType) << " " << n->targetVar << " = " << n->expr << ";\n";
+                for (const auto& extra : n->multiAssignments) {
+                    ss << tabs << TypeKindToString(extra.varType) << " " << extra.varName << " = " << extra.valueExpr << ";\n";
+                }
                 ss << tabs << "std::cout << \"[LOG] " << n->targetVar << " = \" << (int)" << n->targetVar << " << std::endl;\n\n";
                 curr = getTargetNode(curr, 1);
             }
             else if (n->kind == NodeKind::Assign) {
                 ss << tabs << "// Deger Atama\n";
-                ss << tabs << n->targetVar << " = " << n->expr << ";\n\n";
+                ss << tabs << n->targetVar << " = " << n->expr << ";\n";
+                for (const auto& extra : n->multiAssignments) {
+                    ss << tabs << extra.varName << " = " << extra.valueExpr << ";\n";
+                }
+                ss << "\n";
                 curr = getTargetNode(curr, 1);
             }
             else if (n->kind == NodeKind::Print) {

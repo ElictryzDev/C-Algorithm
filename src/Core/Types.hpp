@@ -100,6 +100,12 @@ struct FlowPin {
     float relY = 0.0f;
 };
 
+struct AssignmentEntry {
+    std::string varName = "x";
+    TypeKind varType = TypeKind::Int32;
+    std::string valueExpr = "0";
+};
+
 struct FlowNode {
     int id = 0;
     NodeKind kind = NodeKind::Start;
@@ -110,6 +116,9 @@ struct FlowNode {
     TypeKind varType = TypeKind::Int32;
     std::string expr = "0";
     
+    // Coklu Degisken / Coklu Atama Soketleri
+    std::vector<AssignmentEntry> multiAssignments;
+
     // Girdi / Cikti Ayarlari
     std::string ioText = "Merhaba C-Algorithm!";
 

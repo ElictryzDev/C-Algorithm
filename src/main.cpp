@@ -130,15 +130,17 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             RenderProjectGatingModal(pm);
         } else {
             // ── 2. PROJE AÇIKSA: TAM TEŞEKKÜLLÜ IDE ÇALIŞIR ──────────────
+            bool isEn = (pm.currentLanguage == AppLanguage::English);
+
             if (ImGui::BeginMenuBar()) {
                 ImGui::TextColored(ImVec4(0, 0.85f, 1.0f, 1.0f), "[C-ALGORITHM IDE]");
                 ImGui::SameLine(0, 20);
-                ImGui::TextColored(ImVec4(0.9f, 0.9f, 0.9f, 1.0f), "|  Proje: %s", pm.projectName.c_str());
+                ImGui::TextColored(ImVec4(0.9f, 0.9f, 0.9f, 1.0f), isEn ? "|  Project: %s" : "|  Proje: %s", pm.projectName.c_str());
 
                 ImGui::SameLine(0, 30);
-                if (ImGui::Button("Kaydet (Save)")) { pm.SaveProject(); }
+                if (ImGui::Button(isEn ? "Save Project" : "Projeyi Kaydet")) { pm.SaveProject(); }
                 ImGui::SameLine();
-                if (ImGui::Button("Kapat (Close)")) { pm.CloseProject(); }
+                if (ImGui::Button(isEn ? "Close" : "Kapat")) { pm.CloseProject(); }
 
                 ImGui::SameLine(ImGui::GetWindowWidth() - 350);
                 ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "%s", pm.statusMessage.c_str());
@@ -150,19 +152,23 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
             ImGui::BeginChild("WorkspacesContainer", mainAreaSize, false);
             if (ImGui::BeginTabBar("MainTabs", ImGuiTabBarFlags_None)) {
-                if (ImGui::BeginTabItem("Akis Semasi Grafigi")) {
+                if (ImGui::BeginTabItem(isEn ? "Flow Graph Event Canvas" : "Akış Şeması Olay Grafiği")) {
                     RenderFlowGraphWorkspace(pm, selectedNodeId);
                     ImGui::EndTabItem();
                 }
-                if (ImGui::BeginTabItem("Data Structure Advisor")) {
+                if (ImGui::BeginTabItem(isEn ? "Data Structure Advisor" : "Veri Yapısı Danışmanı")) {
                     RenderAdvisorWorkspace(pm);
                     ImGui::EndTabItem();
                 }
-                if (ImGui::BeginTabItem("Canli C++ Kodu")) {
+                if (ImGui::BeginTabItem(isEn ? "Custom Print Scene" : "Konsol Çıktı Tasarımcısı")) {
+                    RenderCustomPrintScene(pm);
+                    ImGui::EndTabItem();
+                }
+                if (ImGui::BeginTabItem(isEn ? "Live C++ Code" : "Canlı C++ Kodu")) {
                     RenderCodegenWorkspace(pm);
                     ImGui::EndTabItem();
                 }
-                if (ImGui::BeginTabItem("Ayarlar (Settings)")) {
+                if (ImGui::BeginTabItem(isEn ? "Settings" : "Ayarlar")) {
                     RenderSettingsWorkspace(pm);
                     ImGui::EndTabItem();
                 }
