@@ -1065,6 +1065,40 @@ void RenderInspectorPanel(ProjectManager& pm, int& selectedNodeId) {
                     if (ImGui::InputText("##bodyStmt", stmtBuf, sizeof(stmtBuf))) {
                         n->loopBodyStmts[si] = stmtBuf;
                     }
+
+                    // ── Anlık Uyarı Kontrolü ────────────────────────────
+                    {
+                        const std::string& s = n->loopBodyStmts[si];
+                        // Bare 'endl' — std::endl olmadan
+                        bool badEndl  = s.find("endl")     != std::string::npos
+                                     && s.find("std::endl") == std::string::npos;
+                        // Bare 'cout'  — std::cout olmadan
+                        bool badCout  = s.find("cout")     != std::string::npos
+                                     && s.find("std::cout") == std::string::npos;
+                        // Bare 'cin'   — std::cin olmadan
+                        bool badCin   = s.find("cin")      != std::string::npos
+                                     && s.find("std::cin")  == std::string::npos;
+                        // Sona ; koymuş — codegen zaten ekliyor, çift ; hata verir
+                        bool trailSemi = !s.empty() && s.back() == ';';
+
+                        if (badEndl)
+                            ImGui::TextColored(ImVec4(1.f,0.3f,0.3f,1.f),
+                                isEn ? "  [!] Use std::endl not endl"
+                                     : "  [!] 'endl' yerine 'std::endl' yazin");
+                        if (badCout)
+                            ImGui::TextColored(ImVec4(1.f,0.3f,0.3f,1.f),
+                                isEn ? "  [!] Use std::cout not cout"
+                                     : "  [!] 'cout' yerine 'std::cout' yazin");
+                        if (badCin)
+                            ImGui::TextColored(ImVec4(1.f,0.3f,0.3f,1.f),
+                                isEn ? "  [!] Use std::cin not cin"
+                                     : "  [!] 'cin' yerine 'std::cin' yazin");
+                        if (trailSemi)
+                            ImGui::TextColored(ImVec4(1.f,0.7f,0.1f,1.f),
+                                isEn ? "  [!] Remove trailing ';' — codegen adds it"
+                                     : "  [!] Sona ';' koyma — codegen otomatik ekliyor");
+                    }
+
                     ImGui::SameLine();
                     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.7f, 0.15f, 0.15f, 1.0f));
                     if (ImGui::SmallButton("X")) {

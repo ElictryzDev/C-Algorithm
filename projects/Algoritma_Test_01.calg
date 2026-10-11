@@ -6,7 +6,7 @@ ADVISOR_COUNT=1000000
 5|0|Event Software Start|-8|37|x|0|0|Merhaba C-Algorithm!|x < 10|int i = 0|i++
 9|1|Program Return (0)|1050|183|x|0|0|Merhaba C-Algorithm!|x < 10|int i = 0|i++
 10|7|While Loop|697|35|x|0|0|Merhaba C-Algorithm!|sayac < 10|int i = 0|i++
-BODY_STMTS|10|sayac++|std::cout << "Sayac Dongusu Bu" << endl
+BODY_STMTS|10|sayac++|std::cout << "Sayac Dongusu Bu" << std::endl
 12|2|Variable Declare|392|45|sayac|5|1|Merhaba C-Algorithm!|x < 10|int i = 0|i++
 [WIRES]
 2|10|2|9|0
