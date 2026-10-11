@@ -479,6 +479,7 @@ std::string ProjectManager::GenerateCppCode() {
 
     // Recursive / Stack-based zincir kod üretici fonksiyon
     std::set<int> visited;
+    std::set<std::string> declaredDataStructures;
     std::function<void(int, int)> generateChain = [&](int nodeId, int indent) {
         int curr = nodeId;
         while (curr > 0) {
@@ -542,6 +543,12 @@ std::string ProjectManager::GenerateCppCode() {
                 std::string op = !n->dsOpType.empty() ? n->dsOpType : n->vectorOpType;
                 std::string arg = !n->dsOpArg.empty() ? n->dsOpArg : n->vectorOpArg;
 
+                if (!declaredDataStructures.count(targetDS)) {
+                    ss << tabs << "// Veri Yapisi Tanimlama (Dinamik Dizi)\n";
+                    ss << tabs << "std::vector<int> " << targetDS << ";\n";
+                    declaredDataStructures.insert(targetDS);
+                }
+
                 ss << tabs << "// std::vector Islemi: " << targetDS << "." << op << "()\n";
                 if (op == "push_back") {
                     ss << tabs << targetDS << ".push_back(" << arg << ");\n";
@@ -556,6 +563,12 @@ std::string ProjectManager::GenerateCppCode() {
                 curr = getTargetNode(curr, 1);
             }
             else if (n->kind == NodeKind::ListOp) {
+                if (!declaredDataStructures.count(n->dsName)) {
+                    ss << tabs << "// Veri Yapisi Tanimlama (Bagli Liste)\n";
+                    ss << tabs << "std::list<int> " << n->dsName << ";\n";
+                    declaredDataStructures.insert(n->dsName);
+                }
+
                 ss << tabs << "// std::list Islemi (Bagli Liste): " << n->dsName << "." << n->dsOpType << "()\n";
                 if (n->dsOpType == "push_back") {
                     ss << tabs << n->dsName << ".push_back(" << n->dsOpArg << ");\n";
@@ -576,6 +589,12 @@ std::string ProjectManager::GenerateCppCode() {
                 curr = getTargetNode(curr, 1);
             }
             else if (n->kind == NodeKind::StackOp) {
+                if (!declaredDataStructures.count(n->dsName)) {
+                    ss << tabs << "// Veri Yapisi Tanimlama (Yigin / LIFO)\n";
+                    ss << tabs << "std::stack<int> " << n->dsName << ";\n";
+                    declaredDataStructures.insert(n->dsName);
+                }
+
                 ss << tabs << "// std::stack Islemi (Yigin / LIFO): " << n->dsName << "." << n->dsOpType << "()\n";
                 if (n->dsOpType == "push") {
                     ss << tabs << n->dsName << ".push(" << n->dsOpArg << ");\n";
@@ -588,6 +607,12 @@ std::string ProjectManager::GenerateCppCode() {
                 curr = getTargetNode(curr, 1);
             }
             else if (n->kind == NodeKind::QueueOp) {
+                if (!declaredDataStructures.count(n->dsName)) {
+                    ss << tabs << "// Veri Yapisi Tanimlama (Kuyruk / FIFO)\n";
+                    ss << tabs << "std::queue<int> " << n->dsName << ";\n";
+                    declaredDataStructures.insert(n->dsName);
+                }
+
                 ss << tabs << "// std::queue Islemi (Kuyruk / FIFO): " << n->dsName << "." << n->dsOpType << "()\n";
                 if (n->dsOpType == "push") {
                     ss << tabs << n->dsName << ".push(" << n->dsOpArg << ");\n";
@@ -600,6 +625,12 @@ std::string ProjectManager::GenerateCppCode() {
                 curr = getTargetNode(curr, 1);
             }
             else if (n->kind == NodeKind::ArrayOp) {
+                if (!declaredDataStructures.count(n->dsName)) {
+                    ss << tabs << "// Sabit Boyutlu Dizi Tanimlama\n";
+                    ss << tabs << "int " << n->dsName << "[" << n->arraySize << "] = {0};\n";
+                    declaredDataStructures.insert(n->dsName);
+                }
+
                 ss << tabs << "// Sabit Boyutlu Dizi Islemi (Array Indexing): " << n->dsName << "[" << n->arrayIndex << "] = " << n->dsOpArg << "\n";
                 ss << tabs << n->dsName << "[" << n->arrayIndex << "] = " << n->dsOpArg << ";\n";
                 ss << tabs << "std::cout << \"[ARRAY] " << n->dsName << "[" << n->arrayIndex << "] = \" << " << n->dsName << "[" << n->arrayIndex << "] << std::endl;\n\n";

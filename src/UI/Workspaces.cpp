@@ -1,5 +1,8 @@
 #include "Workspaces.hpp"
+#include <windows.h>
 #include <cmath>
+#include <sstream>
+#include <cstdio>
 
 // ── 1. Proje Karsilama Ekrani (Project Gating) ───────────────────────────
 void RenderProjectGatingModal(ProjectManager& pm) {
@@ -596,25 +599,272 @@ void RenderAdvisorWorkspace(ProjectManager& pm) {
     ImGui::EndChild();
 }
 
-// ── 4. Canli C++ Kodu Workspace ──────────────────────────────────────────
+// ── 4. Canli C++ Kodu + Build & Run Terminal Workspace ───────────────────
+// Derleyici ciktisini ve program ciktisini tampon'da tutan global buffer
+static std::string g_buildOutput;
+static bool        g_buildRunning  = false;
+static bool        g_showGuide     = false;
+static bool        g_lastBuildOk   = false;
+static char        g_tempCppPath[MAX_PATH] = {};
+static char        g_tempExePath[MAX_PATH] = {};
+
+// MSVC vcvars64.bat konumu (sabit yol — compile.bat ile ayni)
+static const char* VCVARS_PATH =
+    "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\"
+    "VC\\Auxiliary\\Build\\vcvars64.bat";
+
+// Proje klasoru — .exe ve .cpp gecici dosyalar buraya kaydedilir
+static const char* PROJECTS_DIR =
+    "C:\\Users\\ASUS TUF GAMING\\Desktop\\C-Algorithm\\projects";
+
+// cl.exe mevcutlugunu kontrol eden yardimci
+static bool DetectMSVC() {
+    FILE* f = nullptr;
+    fopen_s(&f, VCVARS_PATH, "r");
+    if (f) { fclose(f); return true; }
+    return false;
+}
+
+// Komut satirini calistirip butun ciktisini string olarak donduran yardimci
+static std::string RunCommandCapture(const std::string& cmd, bool& outOk) {
+    std::string result;
+    FILE* pipe = _popen(cmd.c_str(), "r");
+    if (!pipe) { outOk = false; return "[HATA] _popen basarisiz oldu!\n"; }
+    char buf[512];
+    while (fgets(buf, sizeof(buf), pipe)) {
+        result += buf;
+    }
+    int exitCode = _pclose(pipe);
+    outOk = (exitCode == 0);
+    result += "\n[Cikis Kodu: " + std::to_string(exitCode) + "]\n";
+    return result;
+}
+
 void RenderCodegenWorkspace(ProjectManager& pm) {
     std::string code = pm.GenerateCppCode();
-
     bool isEn = (pm.currentLanguage == AppLanguage::English);
 
-    ImGui::BeginChild("CodegenBar", ImVec2(0, 42), true);
-    if (ImGui::Button(isEn ? "Copy to Clipboard" : "Panoya Kopyala")) {
+    // ── Ust arac cubugu ───────────────────────────────────────────────────
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.06f, 0.07f, 0.10f, 1.0f));
+    ImGui::BeginChild("CodegenBar", ImVec2(0, 46), true);
+    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 4);
+
+    // Kopyala dugmesi
+    if (ImGui::Button(isEn ? "Copy" : "Kopyala", ImVec2(72, 30))) {
         ImGui::SetClipboardText(code.c_str());
-        pm.statusMessage = isEn ? "C++ Code copied to clipboard!" : "C++ Kodu panoya kopyalandi!";
+        pm.statusMessage = isEn ? "C++ code copied!" : "C++ Kodu kopyalandi!";
     }
     ImGui::SameLine();
-    ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), isEn ? "Compilable C++17 Standard Code" : "C++17 Standartlarinda Derlenebilir Kod");
-    ImGui::EndChild();
 
-    ImGui::BeginChild("CodegenView", ImVec2(0, 0), true);
-    // Null-terminator guvenligi: code.size() + 1
-    ImGui::InputTextMultiline("##cppsrc", (char*)code.c_str(), code.size() + 1, ImVec2(-1, -1), ImGuiInputTextFlags_ReadOnly);
+    // Derle & Dahili Calistir dugmesi
+    if (!g_buildRunning) {
+        ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0.10f, 0.50f, 0.18f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.15f, 0.72f, 0.28f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(0.05f, 0.38f, 0.12f, 1.0f));
+        bool startBuild = ImGui::Button(
+            isEn ? "Build & Run (In-App)" : "Derle & Calistir (Dahili)",
+            ImVec2(215, 30));
+        ImGui::PopStyleColor(3);
+
+        if (startBuild) {
+            if (!DetectMSVC()) {
+                g_showGuide   = true;
+                g_lastBuildOk = false;
+                g_buildOutput = isEn
+                    ? "[HATA] MSVC (cl.exe) bulunamadi!\nLutfen asagidaki Gereksinimler Rehberine bakin.\n"
+                    : "[HATA] MSVC (cl.exe) bulunamadi!\nLutfen asagidaki Gereksinimler Rehberine bakin.\n";
+            } else {
+                g_buildRunning = true;
+                g_lastBuildOk  = false;
+                g_showGuide    = false;
+
+                // 1. Gecici .cpp dosyasini kaydet
+                snprintf(g_tempCppPath, MAX_PATH, "%s\\_build_temp.cpp", PROJECTS_DIR);
+                snprintf(g_tempExePath, MAX_PATH, "%s\\_build_temp.exe", PROJECTS_DIR);
+
+                FILE* fout = nullptr;
+                fopen_s(&fout, g_tempCppPath, "w");
+                if (fout) {
+                    fwrite(code.c_str(), 1, code.size(), fout);
+                    fclose(fout);
+                } else {
+                    g_buildOutput  = "[HATA] Gecici .cpp dosyasi olusturulamadi!\n";
+                    g_buildRunning = false;
+                    return;
+                }
+
+                // 2. Derleme komutu — vcvars64 ile cl.exe
+                std::string compileCmd =
+                    "cmd.exe /c \"call \"\"" + std::string(VCVARS_PATH) + "\"\" >nul 2>&1"
+                    " && cl.exe /nologo /std:c++17 /O1 /EHsc"
+                    " \"" + std::string(g_tempCppPath) + "\""
+                    " /Fe:\"" + std::string(g_tempExePath) + "\""
+                    " 2>&1\"";
+
+                g_buildOutput  = isEn
+                    ? "=== Compiling with MSVC (cl.exe / C++17) ===\n"
+                    : "=== MSVC (cl.exe / C++17) ile Derleniyor ===\n";
+                g_buildOutput += RunCommandCapture(compileCmd, g_lastBuildOk);
+
+                // 3. Derleme basarili ise calistir
+                if (g_lastBuildOk) {
+                    g_buildOutput += isEn
+                        ? "\n=== Build OK! Running program... ===\n"
+                        : "\n=== Derleme Basarili! Program calistiriliyor... ===\n";
+
+                    std::string runCmd = "\"" + std::string(g_tempExePath) + "\" 2>&1";
+                    FILE* runPipe = _popen(runCmd.c_str(), "r");
+                    if (runPipe) {
+                        char buf[512];
+                        int lineCount = 0;
+                        while (fgets(buf, sizeof(buf), runPipe) && lineCount < 200) {
+                            g_buildOutput += buf;
+                            lineCount++;
+                        }
+                        if (lineCount >= 200) {
+                            g_buildOutput += isEn
+                                ? "\n[UYARI] 200 satir siniri asildi — sonsuz dongu ihtimali! Durduruldu.\n"
+                                : "\n[WARNING] 200 line limit reached — possible infinite loop! Stopped.\n";
+                        }
+                        _pclose(runPipe);
+                    }
+                } else {
+                    g_buildOutput += isEn
+                        ? "\n[BUILD FAILED — Yukardaki derleyici hatalarini inceleyin.]\n"
+                        : "\n[DERLEME BASARISIZ — Check compiler errors above.]\n";
+                }
+                g_buildRunning = false;
+            }
+        }
+    } else {
+        ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f),
+            isEn ? "  Building..." : "  Derleniyor...");
+    }
+
+    ImGui::SameLine();
+
+    // Harici CMD penceresi dugmesi
+    ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0.10f, 0.22f, 0.52f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.16f, 0.38f, 0.80f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(0.05f, 0.18f, 0.40f, 1.0f));
+    if (ImGui::Button(isEn ? "Open in CMD" : "CMD'de Ac", ImVec2(115, 30))) {
+        snprintf(g_tempCppPath, MAX_PATH, "%s\\_build_temp.cpp", PROJECTS_DIR);
+        snprintf(g_tempExePath, MAX_PATH, "%s\\_build_temp.exe", PROJECTS_DIR);
+        FILE* fout = nullptr;
+        fopen_s(&fout, g_tempCppPath, "w");
+        if (fout) { fwrite(code.c_str(), 1, code.size(), fout); fclose(fout); }
+
+        // start cmd.exe /k — pencere acik kalir, kullanici Ctrl+C ile durdurabilir
+        std::string extCmd =
+            "start cmd.exe /k \"call \"\"" + std::string(VCVARS_PATH) + "\"\" >nul 2>&1"
+            " && cl.exe /nologo /std:c++17 /O1 /EHsc"
+            " \"" + std::string(g_tempCppPath) + "\""
+            " /Fe:\"" + std::string(g_tempExePath) + "\""
+            " && \"" + std::string(g_tempExePath) + "\"\"";
+        system(extCmd.c_str());
+        pm.statusMessage = isEn ? "External CMD window opened!" : "Harici CMD penceresi acildi!";
+    }
+    ImGui::PopStyleColor(3);
+
+    ImGui::SameLine();
+
+    // Gereksinimler rehberi toggle
+    if (ImGui::Button(isEn ? "? Guide" : "? Rehber", ImVec2(80, 30))) {
+        g_showGuide = !g_showGuide;
+    }
+
+    ImGui::SameLine();
+    if (g_lastBuildOk) {
+        ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f),
+            isEn ? "  BUILD OK" : "  DERLEME OK");
+    }
+
     ImGui::EndChild();
+    ImGui::PopStyleColor(); // CodegenBar ChildBg
+
+    // ── Gereksinimler Rehberi (acik oldugunda) ───────────────────────────
+    if (g_showGuide) {
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.04f, 0.08f, 0.04f, 1.0f));
+        ImGui::BeginChild("GuidePanel", ImVec2(0, 175), true);
+        ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.0f, 1.0f),
+            isEn ? "COMPILER REQUIREMENTS GUIDE" : "DERLEYICI GEREKSINIMLERI REHBERI");
+        ImGui::Separator();
+        ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f),
+            "[ONERILIR] Microsoft Visual Studio Build Tools 2022 (MSVC / cl.exe)");
+        ImGui::BulletText("https://visualstudio.microsoft.com/tr/downloads/");
+        ImGui::BulletText(isEn
+            ? "Install: 'Desktop development with C++' workload"
+            : "Yukleyin: 'C++ ile masaustu gelistirme' is yukunu secin");
+        ImGui::BulletText("Beklenen yol: C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat");
+        ImGui::Spacing();
+        ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f),
+            "[ALTERNATIF] MinGW-w64 / g++ (Windows icin GCC)");
+        ImGui::BulletText("https://winlibs.com  veya  https://github.com/niXman/mingw-builds-binaries/releases");
+        ImGui::BulletText(isEn
+            ? "After install, add bin/ to System PATH."
+            : "Kurulumdan sonra bin/ klasorunu Sistem PATH'ine ekleyin.");
+        ImGui::Spacing();
+        ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f),
+            "[ONLINE] Kurmadan deneyin: https://godbolt.org  |  https://onlinegdb.com");
+        ImGui::EndChild();
+        ImGui::PopStyleColor();
+    }
+
+    // ── Kod Gorunumu (ust kisim) ──────────────────────────────────────────
+    float avail   = ImGui::GetContentRegionAvail().y;
+    float codeH   = g_buildOutput.empty() ? avail : avail * 0.52f;
+    float termH   = avail - codeH - 6.0f;
+
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.03f, 0.04f, 0.06f, 1.0f));
+    ImGui::BeginChild("CodegenView", ImVec2(0, codeH), true);
+    ImGui::InputTextMultiline("##cppsrc", (char*)code.c_str(), code.size() + 1,
+        ImVec2(-1, -1), ImGuiInputTextFlags_ReadOnly);
+    ImGui::EndChild();
+    ImGui::PopStyleColor();
+
+    // ── Terminal / Build Output (alt kisim) ───────────────────────────────
+    if (!g_buildOutput.empty() && termH > 10.0f) {
+        ImGui::Spacing();
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.01f, 0.02f, 0.01f, 1.0f));
+        ImGui::BeginChild("BuildTerminal", ImVec2(0, termH), true);
+
+        ImGui::TextColored(ImVec4(0.0f, 0.9f, 0.4f, 1.0f),
+            isEn ? ">>> BUILD & RUN TERMINAL" : ">>> DERLEME & CALISTIRMA TERMINALI");
+        ImGui::SameLine(ImGui::GetContentRegionAvail().x - 72);
+        if (ImGui::SmallButton(isEn ? "Clear" : "Temizle")) {
+            g_buildOutput.clear();
+            g_lastBuildOk = false;
+        }
+        ImGui::Separator();
+
+        // Satir satir renklendirme
+        std::istringstream stream(g_buildOutput);
+        std::string line;
+        while (std::getline(stream, line)) {
+            bool isError   = line.find("error")     != std::string::npos
+                          || line.find("HATA")      != std::string::npos
+                          || line.find("BASARISIZ") != std::string::npos
+                          || line.find("FAILED")    != std::string::npos;
+            bool isWarning = line.find("warning")   != std::string::npos
+                          || line.find("UYARI")     != std::string::npos;
+            bool isOk      = line.find("OK")        != std::string::npos
+                          || line.find("Basarili")  != std::string::npos;
+            bool isSys     = !line.empty() && line[0] == '=';
+
+            if      (isError)   ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.35f, 1.0f), "%s", line.c_str());
+            else if (isWarning) ImGui::TextColored(ImVec4(1.0f, 0.80f, 0.20f, 1.0f), "%s", line.c_str());
+            else if (isOk)      ImGui::TextColored(ImVec4(0.30f, 1.00f, 0.50f, 1.0f), "%s", line.c_str());
+            else if (isSys)     ImGui::TextColored(ImVec4(0.00f, 0.85f, 1.00f, 1.0f), "%s", line.c_str());
+            else                ImGui::TextUnformatted(line.c_str());
+        }
+
+        // Otomatik en alta kaydir
+        if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY() - 60.0f)
+            ImGui::SetScrollHereY(1.0f);
+
+        ImGui::EndChild();
+        ImGui::PopStyleColor();
+    }
 }
 
 // ── 5. Inspector Panel ───────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 PROJECT_NAME=Algoritma_Test_01
 ADVISOR_DS=0
 ADVISOR_OP=0
-ADVISOR_COUNT=10000
+ADVISOR_COUNT=1000000
 [NODES]
 5|0|Event Software Start|-8|37|x|0|0|Merhaba C-Algorithm!|x < 10|int i = 0|i++
 9|1|Program Return (0)|741|114|x|0|0|Merhaba C-Algorithm!|x < 10|int i = 0|i++
