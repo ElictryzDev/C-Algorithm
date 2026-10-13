@@ -16,14 +16,18 @@
 int main() {
     std::cout << "=== Algoritma_Test_01 CALISIYOR ===" << std::endl;
 
-    // Degisken Tanimlama (sayac)
-    uint8_t sayac = 1;
-    std::cout << "[LOG] sayac = " << sayac << std::endl;
+    // Ekrana Cikti Basma
+    std::cout << "Lütfen İsminizi Yazınız." << std::endl;
 
-    // While Dongusu
-    while (sayac < 10) {
-        sayac++;
-        std::cout << "Sayac Dongusu Bu" << std::endl;
+    // Kullanicidan Girdi Alma
+    std::cin >> x;
+
+    // Kosul Karar Blogu
+    if (!(std::cin>>isim)==null) {
+    } else {
+        // Ekrana Cikti Basma
+        std::cout << "İsminizi Girmediniz Lütfen Tekrar Deneyin." << std::endl;
+
     }
 
     std::cout << "=== PROGRAM TAMAMLANDI ===" << std::endl;

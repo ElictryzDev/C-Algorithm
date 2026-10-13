@@ -550,12 +550,21 @@ std::string ProjectManager::GenerateCppCode() {
                         ss << tabs << "std::cout << \"[STRUCT INSTANCE] " << n->targetVar << " stack uzerinde olusturuldu.\" << std::endl;\n\n";
                     } else {
                         ss << tabs << "// Degisken Tanimlama (" << (n->isConst ? "const " : "") << n->targetVar << ")\n";
-                        ss << tabs << constPrefix << resolvedType << " " << n->targetVar << " = " << n->expr << ";\n";
-                        for (const auto& extra : n->multiAssignments) {
-                            ss << tabs << constPrefix << TypeKindToString(extra.varType) << " " << extra.varName << " = " << extra.valueExpr << ";\n";
+                        if (!n->expr.empty()) {
+                            ss << tabs << constPrefix << resolvedType << " " << n->targetVar << " = " << n->expr << ";\n";
+                            ss << tabs << "std::cout << \"[LOG] " << n->targetVar << " = \" << " << n->targetVar << " << std::endl;\n\n";
+                        } else {
+                            ss << tabs << constPrefix << resolvedType << " " << n->targetVar << ";\n\n";
                         }
-                        ss << tabs << "std::cout << \"[LOG] " << n->targetVar << " = \" << " << n->targetVar << " << std::endl;\n\n";
+                        for (const auto& extra : n->multiAssignments) {
+                            if (!extra.valueExpr.empty()) {
+                                ss << tabs << constPrefix << TypeKindToString(extra.varType) << " " << extra.varName << " = " << extra.valueExpr << ";\n";
+                            } else {
+                                ss << tabs << constPrefix << TypeKindToString(extra.varType) << " " << extra.varName << ";\n";
+                            }
+                        }
                     }
+
                 }
                 curr = getTargetNode(curr, 1);
             }
@@ -672,10 +681,12 @@ std::string ProjectManager::GenerateCppCode() {
                 curr = getTargetNode(curr, 1);
             }
             else if (n->kind == NodeKind::Input) {
-                ss << tabs << "// Kullanicidan Girdi Alma\n";
-                ss << tabs << "std::cin >> " << n->targetVar << ";\n\n";
+                std::string inVar = !n->targetVar.empty() ? n->targetVar : "inputVal";
+                ss << tabs << "// Kullanicidan Girdi Alma (std::cin >> " << inVar << ")\n";
+                ss << tabs << "std::cin >> " << inVar << ";\n\n";
                 curr = getTargetNode(curr, 1);
             }
+
             else if (n->kind == NodeKind::BranchIf) {
                 ss << tabs << "// Kosul Karar Blogu\n";
                 ss << tabs << "if (" << n->conditionExpr << ") {\n";

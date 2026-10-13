@@ -3,12 +3,18 @@ ADVISOR_DS=0
 ADVISOR_OP=0
 ADVISOR_COUNT=1000000
 [NODES]
-5|0|Event Software Start|-8|37|x|0|0|Merhaba C-Algorithm!|x < 10|int i = 0|i++
-9|1|Program Return (0)|1050|183|x|0|0|Merhaba C-Algorithm!|x < 10|int i = 0|i++
-10|7|While Loop|697|35|x|0|0|Merhaba C-Algorithm!|sayac < 10|int i = 0|i++
-BODY_STMTS|10|sayac++|std::cout << "Sayac Dongusu Bu" << std::endl
-12|2|Variable Declare|392|45|sayac|5|1|Merhaba C-Algorithm!|x < 10|int i = 0|i++
+23|0|Event Software Start|-529.511|-220.942|x|0|0|Merhaba C-Algorithm!|x < 10|int i = 0|i++
+24|4|Print Output|-246.902|-219.855|x|0|0|Lütfen İsminizi Yazınız.|x < 10|int i = 0|i++
+25|1|Program Return (0)|846.576|-377.463|x|0|0|Merhaba C-Algorithm!|x < 10|int i = 0|i++
+26|2|Değişken Tanımla|-247.826|-78.2609|isim|9|0|Merhaba C-Algorithm!|x < 10|int i = 0|i++
+27|5|Input Read|94.402|-217.681|x|0|0|Merhaba C-Algorithm!|x < 10|int i = 0|i++
+28|6|Branch (If/Else)|375.924|-251.376|x|0|0|Merhaba C-Algorithm!|!(std::>>isim)==null|int i = 0|i++
+29|4|Print Output|706.359|-141.594|x|0|0|İsminizi Girmediniz Lütfen Tekrar Deneyin.|x < 10|int i = 0|i++
 [WIRES]
-2|10|2|9|0
-3|5|0|12|0
-4|12|1|10|0
+1|23|0|24|0
+2|23|0|26|0
+3|24|1|27|0
+4|26|1|27|0
+5|27|1|28|0
+6|28|1|25|0
+7|28|2|29|0

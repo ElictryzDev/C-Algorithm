@@ -1,0 +1,166 @@
+# DGS & AYRIK MATEMATİK VS. C++ ALGORİTMA EŞLEŞTİRME REHBERİ
+Geliştirici & Öğrenci: Mustafa Can Yılmazer (@ElictryzDev)
+Hedef: 2027 DGS (Yazılım / Bilgisayar Mühendisliği) + Ayrık Matematik Temelleri
+Felsefe: Matematiği ezberleme; mimari ve kod karşılığıyla zihninde canlandır!
+
+================================================================================
+BÖLÜM 1: TEMEL KAVRAMLAR & CEBİR --> C++ VERİ TİPLERİ VE DEĞİŞKENLER
+================================================================================
+
+1. Sayı Kümeleri:
+   - Doğal Sayılar (N: 0, 1, 2, ...):
+     C++ Karşılığı: uint32_t, uint8_t, size_t (İşaretsiz / Negatif olamaz).
+     Farkı: Asla -1 alamaz. 0'dan 255'e kadar (uint8_t).
+   - Tam Sayılar (Z: ..., -2, -1, 0, 1, 2, ...):
+     C++ Karşılığı: int, int32_t, long long (İşaretli / Signed).
+   - Rasyonel / Gerçel Sayılar (R: 3.14, -0.5):
+     C++ Karşılığı: float, double (Kayan noktalı sayılar).
+
+2. Tek / Çift Sayılar & Modüler Aritmetik:
+   - Matematik: n tek ise n = 2k + 1, çift ise n = 2k.
+   - Algoritma Karşılığı: Mod (%) Operatörü veya Bitwise AND (&).
+   - Kod Karşılığı:
+     if (sayi % 2 == 0) // Çift
+     if ((sayi & 1) == 0) // Çok daha hızlı çift kontrolü (CPU seviyesinde bit kontrolü!)
+
+3. Asal Sayılar & Bölünebilme:
+   - Matematik: Sadece 1'e ve kendisine bölünebilen 1'den büyük sayılar.
+   - Algoritmik Zaman Karmaşıklığı (Big-O):
+     * Kötü Yol: 2'den N'e kadar her sayıya bölmek -> O(N).
+     * Matematiksel/Akıllı Yol: Sadece kareköküne (sqrt(N)) kadar kontrol etmek -> O(sqrt(N)).
+     * Neden? Çünkü bir bölen varsa, eşi mutlaka karekökünden küçüktür!
+
+================================================================================
+BÖLÜM 2: MANTIK & ÖNERMELER --> IF/ELSE, BOOLEAN CEBRİ & DALLANMA
+================================================================================
+
+1. Önermeler (p, q):
+   - Matematik: Doğru (1) veya Yanlış (0).
+   - C++ Karşılığı: bool kosul1 = true; bool kosul2 = false;
+
+2. Ve (Conjunction - ∧):
+   - Matematik: p ∧ q (Sadece ikisi de 1 ise sonuç 1).
+   - C++ Karşılığı: if (kosul1 && kosul2)
+   - CPU Optimizasyonu (Short-Circuit Evaluation):
+     Eğer kosul1 yanlışsa (0), CPU kosul2'ye hiç bakmaz bile! Direkt geçer.
+
+3. Veya (Disjunction - ∨):
+   - Matematik: p ∨ q (En az biri 1 ise sonuç 1).
+   - C++ Karşılığı: if (kosul1 || kosul2)
+
+4. Değil (Negation - p'):
+   - Matematik: p' veya ¬p.
+   - C++ Karşılığı: if (!kosul1)
+
+5. De Morgan Kuralları (Sınavda ve Kod Refactoring'de Hayat Kurtarır!):
+   - Matematik: (p ∧ q)' ≡ p' ∨ q'
+   - Kod Karşılığı:
+     !(a && b)  İLE  (!a || !b)  BİREBİR AYNIDIR!
+     Kodda karmaşık if bloklarını sadeleştirmek için kullanılır.
+
+================================================================================
+BÖLÜM 3: KÜMELER & BAĞINTILAR --> VERİ YAPILARI (SET, VECTOR, MAP)
+================================================================================
+
+1. Kümeler (Sets):
+   - Matematik Özelliği: Bir kümede aynı eleman iki defa bulunamaz! Sırasızdır.
+   - C++ Karşılığı: std::set<int> veya std::unordered_set<int>.
+   - Bizim Projede:
+     std::set<int> visited; // Kod üretirken aynı düğüme tekrar girmemek için kullandık!
+
+2. Kesişim (A ∩ B):
+   - Matematik: İki kümede de ortak olan elemanlar.
+   - Algoritma Karşılığı: İki listenin ortak elemanlarını bulma. std::set_intersection.
+
+3. Birleşim (A ∪ B):
+   - Matematik: İki kümedeki tüm elemanlar (tekrarsız).
+   - Algoritma Karşılığı: İki listeyi birleştirip tekrarları silme (std::set_union).
+
+4. Kartezyen Çarpım (A x B):
+   - Matematik: s(A) x s(B) tane ikili eşleşme.
+   - Kod Karşılığı: İÇ İÇE İKİ DÖNGÜ (Nested Loops):
+     for (int i : A) {
+         for (int j : B) {
+             // (i, j) ikilisi -> Zaman Karmaşıklığı: O(N * M)
+         }
+     }
+
+================================================================================
+BÖLÜM 4: FONKSİYONLAR & ÖZİNELEME (RECURSION) --> GENERATECHAIN MANTIĞI
+================================================================================
+
+1. Fonksiyon Mantığı:
+   - Matematik: f: X -> Y (Tanım kümesinden Değer kümesine eşleme). f(x) = 2x + 1.
+   - C++:
+     int f(int x) { return 2 * x + 1; }
+
+2. Bileşke Fonksiyon (f o g)(x):
+   - Matematik: f(g(x))
+   - C++: f(g(x)) -> Önce içerideki g fonksiyonu çalışır, sonucu f'e argüman olur.
+
+3. Tümevarım ve Özyineleme (Mathematical Induction & Recursion):
+   - Matematik:
+     * Başlangıç adımı (Base Case): n = 1 için doğru mu?
+     * Tümevarım adımı (Inductive Step): n = k için doğruysa, n = k + 1 için doğru mu?
+   - C++ Karşılığı:
+     Bizim C-Algorithm'deki `generateChain` fonksiyonu!
+     * Base Case: if (visited.count(curr)) break; (Döngü durma şartı).
+     * Step: Bir sonraki bağlı düğümü bul ve fonksiyonu tekrar çağır: generateChain(next, indent).
+
+================================================================================
+BÖLÜM 5: DİZİLER, SERİLER & DÖNGÜLER --> FOR & WHILE İLE TIME COMPLEXITY
+================================================================================
+
+1. Aritmetik Dizi (Sabit Artış):
+   - Matematik: a_n = a_1 + (n - 1) * d
+   - Kod Karşılığı:
+     for (int i = 0; i < n; i += d) // i her seferinde 'd' kadar artar.
+
+2. Gauss Toplam Formülü (1'den n'e kadar sayıların toplamı):
+   - Formül: n * (n + 1) / 2
+   - Kötü Kodcu (Döngüyle çözer):
+     int toplam = 0;
+     for (int i = 1; i <= n; i++) toplam += i; // O(N) zaman alır. N=1 Milyar ise çöker!
+   - Matematik Bilen Usta Kodcu (Formülle çözer):
+     long long toplam = (long long)n * (n + 1) / 2; // O(1) SIFIR ZAMAN! Tek hamlede biter.
+   - DGS'de de bunu döngü kurarak tek tek toplayamazsın; formülü bilip tek hamlede işaretlersin!
+
+================================================================================
+BÖLÜM 6: GRAF TEORİSİ (GRAPH THEORY) --> C-ALGORITHM'İN KALBİ
+================================================================================
+
+1. Düğümler (Vertices / Nodes) ve Kenarlar (Edges / Wires):
+   - Matematiksel Gösterim: G = (V, E)
+   - Projedeki Karşılığı:
+     std::vector<FlowNode> nodes; // V kümesi
+     std::vector<FlowWire> wires; // E kümesi
+
+2. Yönlü Graf (Directed Graph):
+   - Matematik: Kenarların yönü vardır (A -> B).
+   - Projemiz: Kablolar çıkış pininden (ExecOut) giriş pinine (ExecIn) tek yönde akar.
+
+3. Çevrim / Döngü Tespiti (Cycle Detection):
+   - Matematik: Başladığın düğüme geri dönebilen kapalı bir yol var mı?
+   - Projemizdeki Fonksiyon:
+     `pm.WouldCreateCycle(fromNode, toNode)`
+   - Ne yapar? Kullanıcı kablo çekerken sonsuz bir döngü oluşmasını engeller!
+   - Algoritma: Derinlik Öncelikli Arama (DFS - Depth First Search).
+
+================================================================================
+BÖLÜM 7: DGS SINAV ANINDA KULLANILACAK 3 ALTIN KURAL
+================================================================================
+
+KURAL 1: KAĞIDA SÖZDE KOD YAZMA!
+Sözde kodu kafanda kur (Senaryoyu algıla), kağıda sadece matematiksel denklemi yaz:
+Örnek: "Bir depodaki su her gün 2 katına çıkıyor..."
+Kafandaki Algoritma: Döngü var, üslü sayı (2^n).
+Kağıda Yazılacak Olan: 2^n = 128 -> n = 7. (Süre: 10 saniye!).
+
+KURAL 2: DEĞİŞKEN VERMEKTEN KORKMA!
+Bilinmeyene hemen "x" de.
+İkinci bilinmeyene "y" deme, mümkünse x cinsinden yaz: (Toplamları 50 ise: x ve 50-x).
+Böylece tek değişkenli denkleme indirgersin, C++'taki tek değişkenli atama gibi hızla çözülür.
+
+KURAL 3: ŞIKLARDAN GİTMEK (TEST TEKNİĞİ):
+Bazen bir denklemi çözmek zordur ama şıkkı yerine koyup sağlamasını yapmak 5 saniye sürer.
+Bunu kodda "Birim Test (Unit Test)" çalıştırmak gibi düşün. Sağlamayı yap, geç!

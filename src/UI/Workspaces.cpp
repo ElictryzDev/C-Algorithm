@@ -992,6 +992,22 @@ void RenderInspectorPanel(ProjectManager& pm, int& selectedNodeId) {
                 if (ImGui::InputText(isEn ? "Text to Print" : "Yazdırılacak Metin", textBuf, sizeof(textBuf))) {
                     n->ioText = textBuf;
                 }
+            } else if (n->kind == NodeKind::Input) {
+                char varBuf[64];
+                strncpy(varBuf, n->targetVar.c_str(), sizeof(varBuf));
+                if (ImGui::InputText(isEn ? "Target Variable to Read" : "Girdinin Yazılacağı Değişken", varBuf, sizeof(varBuf))) {
+                    n->targetVar = varBuf;
+                }
+                if (n->targetVar.empty()) {
+                    ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f),
+                        isEn ? "  [!] Specify a variable name (e.g. isim, yas)"
+                             : "  [!] Bir değişken adı yazın (ör: isim, yas)");
+                } else {
+                    ImGui::TextColored(ImVec4(0.4f, 0.9f, 0.4f, 1.0f),
+                        isEn ? "  -> Generates: std::cin >> %s;"
+                             : "  -> Üretilen: std::cin >> %s;", n->targetVar.c_str());
+                }
+
             } else if (n->kind == NodeKind::Assign) {
                 char varBuf[64];
                 strncpy(varBuf, n->targetVar.c_str(), sizeof(varBuf));
