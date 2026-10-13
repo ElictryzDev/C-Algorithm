@@ -16,19 +16,17 @@
 int main() {
     std::cout << "=== Algoritma_Test_01 CALISIYOR ===" << std::endl;
 
+    // Degisken Tanimlama (isim)
+    std::string isim;
+
     // Ekrana Cikti Basma
-    std::cout << "Lütfen İsminizi Yazınız." << std::endl;
+    std::cout << "Lütfen isminizi giriniz." << std::endl;
 
-    // Kullanicidan Girdi Alma
-    std::cin >> x;
+    // Kullanicidan Girdi Alma (std::cin >> isim)
+    std::cin >> isim;
 
-    // Kosul Karar Blogu
-    if (!(std::cin>>isim)==null) {
-    } else {
-        // Ekrana Cikti Basma
-        std::cout << "İsminizi Girmediniz Lütfen Tekrar Deneyin." << std::endl;
-
-    }
+    // Ekrana Cikti Basma
+    std::cout << "Hoşgeldiniz Mustafacan!" << std::endl;
 
     std::cout << "=== PROGRAM TAMAMLANDI ===" << std::endl;
     return 0;

@@ -771,16 +771,34 @@ void RenderCodegenWorkspace(ProjectManager& pm) {
         fopen_s(&fout, g_tempCppPath, "w");
         if (fout) { fwrite(code.c_str(), 1, code.size(), fout); fclose(fout); }
 
-        // start cmd.exe /k — pencere acik kalir, kullanici Ctrl+C ile durdurabilir
-        std::string extCmd =
-            "start cmd.exe /k \"call \"\"" + std::string(VCVARS_PATH) + "\"\" >nul 2>&1"
-            " && cl.exe /nologo /std:c++17 /O1 /EHsc"
-            " \"" + std::string(g_tempCppPath) + "\""
-            " /Fe:\"" + std::string(g_tempExePath) + "\""
-            " && \"" + std::string(g_tempExePath) + "\"\"";
+        // Harici interaktif .bat olustur (quoting hatasi olmadan derler ve calistirir)
+        char interactiveBatPath[MAX_PATH];
+        snprintf(interactiveBatPath, MAX_PATH, "%s\\_run_interactive.bat", PROJECTS_DIR);
+        FILE* fcmd = nullptr;
+        fopen_s(&fcmd, interactiveBatPath, "w");
+        if (fcmd) {
+            fprintf(fcmd, "@echo off\r\n");
+            fprintf(fcmd, "title C-Algorithm Interactive Runner\r\n");
+            fprintf(fcmd, "echo === C-Algorithm: Program Derleniyor ve Baslatiliyor... ===\r\n");
+            fprintf(fcmd, "call \"%s\" >nul 2>&1\r\n", VCVARS_PATH);
+            fprintf(fcmd, "cl.exe /nologo /std:c++17 /O1 /EHsc \"%s\" /Fe:\"%s\"\r\n", g_tempCppPath, g_tempExePath);
+            fprintf(fcmd, "if %%errorlevel%% equ 0 (\r\n");
+            fprintf(fcmd, "    echo === PROGRAM CALISTIRILIYOR ===\r\n");
+            fprintf(fcmd, "    echo.\r\n");
+            fprintf(fcmd, "    \"%s\"\r\n", g_tempExePath);
+            fprintf(fcmd, "    echo.\r\n");
+            fprintf(fcmd, "    echo === Program sonlandi. Pencereyi kapatabilirsiniz. ===\r\n");
+            fprintf(fcmd, ") else (\r\n");
+            fprintf(fcmd, "    echo [HATA] Derleme basarisiz oldu! Yukaridaki derleyici ciktisini inceleyin.\r\n");
+            fprintf(fcmd, ")\r\n");
+            fclose(fcmd);
+        }
+
+        std::string extCmd = "start cmd.exe /k \"" + std::string(interactiveBatPath) + "\"";
         system(extCmd.c_str());
         pm.statusMessage = isEn ? "External CMD window opened!" : "Harici CMD penceresi acildi!";
     }
+
     ImGui::PopStyleColor(3);
 
     ImGui::SameLine();
