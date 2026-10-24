@@ -292,6 +292,14 @@ bool ProjectManager::SaveProject() {
         if (n.kind == NodeKind::Print) {
             out << "PRINT_MODE|" << n.id << "|" << n.printMode << "\n";
         }
+        // Coklu degisken soketlerini kaydet
+        if (!n.multiAssignments.empty()) {
+            out << "MULTI_ASSIGN|" << n.id;
+            for (const auto& a : n.multiAssignments) {
+                out << "|" << a.varName << "|" << (int)a.varType << "|" << a.valueExpr;
+            }
+            out << "\n";
+        }
     }
 
     out << "[WIRES]\n";
@@ -368,6 +376,20 @@ bool ProjectManager::OpenProject(const std::string& fullPath) {
                     FlowNode* pn = GetNode(targetId);
                     if (pn) {
                         pn->printMode = std::stoi(tokens[2]);
+                    }
+                }
+                continue;
+            }
+
+            if (!tokens.empty() && tokens[0] == "MULTI_ASSIGN") {
+                if (tokens.size() >= 5) {
+                    int targetId = std::stoi(tokens[1]);
+                    FlowNode* vn = GetNode(targetId);
+                    if (vn) {
+                        vn->multiAssignments.clear();
+                        for (size_t ai = 2; ai + 2 < tokens.size(); ai += 3) {
+                            vn->multiAssignments.push_back({ tokens[ai], (TypeKind)std::stoi(tokens[ai + 1]), tokens[ai + 2] });
+                        }
                     }
                 }
                 continue;

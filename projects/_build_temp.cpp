@@ -26,8 +26,21 @@ int main() {
     int can = 100;
     std::cout << "[LOG] can = " << can << std::endl;
 
-    int x = 0;
     int sonuc = 0;
+    int x = 0;
+    // Ekrana Cikti Basma
+    std::cout << "Eklemek İstediğiniz Can Değerini Giriniz:" << std::endl;
+
+    // Kullanicidan Girdi Alma (std::cin >> x)
+    std::cin >> x;
+
+    // Matematiksel Islem: sonuc
+    sonuc = can + x;
+    std::cout << "[ISLEM] sonuc = " << +can << " + " << +x << " -> " << +sonuc << std::endl;
+
+    // Ekrana Cikti Basma
+    std::cout << "Toplanan X ve Can değişkenlerinin toplam değerleri: " << std::endl;
+
     std::cout << "=== PROGRAM TAMAMLANDI ===" << std::endl;
     return 0;
 }
