@@ -468,7 +468,8 @@ std::string ProjectManager::GenerateCppCode() {
     ss << "#include <queue>\n";
     ss << "#include <array>\n";
     ss << "#include <memory>\n";
-    ss << "#include <cmath>\n\n";
+    ss << "#include <cmath>\n";
+    ss << "#include <windows.h>\n\n";
 
     // ── KULLANICI TANIMLI VERI YAPILARI (STRUCTS) ─────────────
     bool hasStructs = false;
@@ -497,6 +498,9 @@ std::string ProjectManager::GenerateCppCode() {
     }
 
     ss << "int main() {\n";
+    ss << "    // Windows Konsolunu UTF-8 Moduna Al (Turkce Karakter Destegi)\n";
+    ss << "    SetConsoleOutputCP(65001);\n";
+    ss << "    SetConsoleCP(65001);\n\n";
     ss << "    std::cout << \"=== " << projectName << " CALISIYOR ===\" << std::endl;\n\n";
 
     // Helper lambda: verilen pinden çıkan düğümü bul
@@ -561,9 +565,10 @@ std::string ProjectManager::GenerateCppCode() {
                         ss << tabs << "std::cout << \"[STRUCT INSTANCE] " << n->targetVar << " stack uzerinde olusturuldu.\" << std::endl;\n\n";
                     } else {
                         ss << tabs << "// Degisken Tanimlama (" << (n->isConst ? "const " : "") << n->targetVar << ")\n";
+                        std::string printCast = (n->varType == TypeKind::UInt8) ? "+(int)" : "";
                         if (!n->expr.empty()) {
                             ss << tabs << constPrefix << resolvedType << " " << n->targetVar << " = " << n->expr << ";\n";
-                            ss << tabs << "std::cout << \"[LOG] " << n->targetVar << " = \" << " << n->targetVar << " << std::endl;\n\n";
+                            ss << tabs << "std::cout << \"[LOG] " << n->targetVar << " = \" << " << printCast << n->targetVar << " << std::endl;\n\n";
                         } else {
                             ss << tabs << constPrefix << resolvedType << " " << n->targetVar << ";\n\n";
                         }
@@ -717,18 +722,18 @@ std::string ProjectManager::GenerateCppCode() {
                 ss << tabs << "// Matematiksel Islem: " << target << "\n";
                 if (op == "sqrt") {
                     ss << tabs << target << " = std::sqrt(" << left << ");\n";
-                    ss << tabs << "std::cout << \"[ISLEM] " << target << " = sqrt(\" << " << left << " << \") -> \" << " << target << " << std::endl;\n\n";
+                    ss << tabs << "std::cout << \"[ISLEM] " << target << " = sqrt(\" << +" << left << " << \") -> \" << +" << target << " << std::endl;\n\n";
                 } else if (op == "pow") {
                     ss << tabs << target << " = std::pow(" << left << ", " << right << ");\n";
-                    ss << tabs << "std::cout << \"[ISLEM] " << target << " = pow(\" << " << left << " << \", \" << " << right << " << \") -> \" << " << target << " << std::endl;\n\n";
+                    ss << tabs << "std::cout << \"[ISLEM] " << target << " = pow(\" << +" << left << " << \", \" << +" << right << " << \") -> \" << +" << target << " << std::endl;\n\n";
                 } else if (op == "fact") {
                     ss << tabs << target << " = 1;\n";
                     ss << tabs << "for (int i = 1; i <= " << left << "; ++i) { " << target << " *= i; }\n";
-                    ss << tabs << "std::cout << \"[ISLEM] " << target << " = \" << " << left << " << \"! (Faktoriyel) -> \" << " << target << " << std::endl;\n\n";
+                    ss << tabs << "std::cout << \"[ISLEM] " << target << " = \" << +" << left << " << \"! (Faktoriyel) -> \" << +" << target << " << std::endl;\n\n";
                 } else {
                     // +, -, *, /, %
                     ss << tabs << target << " = " << left << " " << op << " " << right << ";\n";
-                    ss << tabs << "std::cout << \"[ISLEM] " << target << " = \" << " << left << " << \" " << op << " \" << " << right << " << \" -> \" << " << target << " << std::endl;\n\n";
+                    ss << tabs << "std::cout << \"[ISLEM] " << target << " = \" << +" << left << " << \" " << op << " \" << +" << right << " << \" -> \" << +" << target << " << std::endl;\n\n";
                 }
                 curr = getTargetNode(curr, 1);
             }

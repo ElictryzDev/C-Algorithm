@@ -3,15 +3,13 @@ ADVISOR_DS=0
 ADVISOR_OP=0
 ADVISOR_COUNT=1000000
 [NODES]
-30|0|Event Software Start|-292.334|106.333|x|0|0|Merhaba C-Algorithm!|x < 10|int i = 0|i++
-31|2|Variable Declare|-56.6663|85.667|isim|9||Merhaba C-Algorithm!|x < 10|int i = 0|i++
-32|4|Print Output|181.333|91.0003|x|0|0|Lütfen isminizi giriniz.|x < 10|int i = 0|i++
-33|5|Input Read|361.333|63.333|isim|0|0|Merhaba C-Algorithm!|x < 10|int i = 0|i++
-35|4|Print Output|606.333|66.333|x|0|0|Hoşgeldiniz Mustafacan!|x < 10|int i = 0|i++
-37|1|Program Return (0)|856.179|93.4667|x|0|0|Merhaba C-Algorithm!|x < 10|int i = 0|i++
+30|0|Event Software Start|-84.0007|158|x|0|0|Merhaba C-Algorithm!|x < 10|int i = 0|i++
+37|1|Program Return (0)|1076.18|136.8|x|0|0|Merhaba C-Algorithm!|x < 10|int i = 0|i++
+41|2|Variable Declare|203.174|159.42|can|5|100|Merhaba C-Algorithm!|x < 10|int i = 0|i++
+44|17|Math Operation|518.174|157.754|x|0|0|Merhaba C-Algorithm!|x < 10|int i = 0|i++
+45|4|Print Output|799.841|142.754|sonuc|0|0|Toplanan X ve Can değişkenlerinin toplam değerleri: |x < 10|int i = 0|i++
 [WIRES]
-8|30|0|31|0
-9|31|1|32|0
-10|32|1|33|0
-7|35|1|37|0
-5|33|1|35|0
+2|30|0|41|0
+2|41|1|44|0
+3|44|1|45|0
+4|45|1|37|0
