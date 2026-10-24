@@ -35,8 +35,8 @@ int main() {
     std::cin >> x;
 
     // Matematiksel Islem: sonuc
-    sonuc = can + x;
-    std::cout << "[ISLEM] sonuc = " << +can << " + " << +x << " -> " << +sonuc << std::endl;
+    sonuc = can * x;
+    std::cout << "[ISLEM] sonuc = " << +can << " * " << +x << " -> " << +sonuc << std::endl;
 
     // Ekrana Cikti Basma
     std::cout << "Toplanan X ve Can değişkenlerinin toplam değerleri: " << std::endl;
