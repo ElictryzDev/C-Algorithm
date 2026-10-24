@@ -284,6 +284,14 @@ bool ProjectManager::SaveProject() {
                 out << "|" << s;
             out << "\n";
         }
+        // MathOp alanlarini ozel satir olarak yaz
+        if (n.kind == NodeKind::MathOp) {
+            out << "MATH_OP|" << n.id << "|" << n.mathTarget << "|" << n.mathLeft << "|" << n.mathOp << "|" << n.mathRight << "\n";
+        }
+        // Print modu icin ozel satir
+        if (n.kind == NodeKind::Print) {
+            out << "PRINT_MODE|" << n.id << "|" << n.printMode << "\n";
+        }
     }
 
     out << "[WIRES]\n";
@@ -338,6 +346,31 @@ bool ProjectManager::OpenProject(const std::string& fullPath) {
                     }
                 }
                 continue; // Bu satiri dugum olarak isleme
+            }
+
+            if (!tokens.empty() && tokens[0] == "MATH_OP") {
+                if (tokens.size() >= 6) {
+                    int targetId = std::stoi(tokens[1]);
+                    FlowNode* mn = GetNode(targetId);
+                    if (mn) {
+                        mn->mathTarget = tokens[2];
+                        mn->mathLeft = tokens[3];
+                        mn->mathOp = tokens[4];
+                        mn->mathRight = tokens[5];
+                    }
+                }
+                continue;
+            }
+
+            if (!tokens.empty() && tokens[0] == "PRINT_MODE") {
+                if (tokens.size() >= 3) {
+                    int targetId = std::stoi(tokens[1]);
+                    FlowNode* pn = GetNode(targetId);
+                    if (pn) {
+                        pn->printMode = std::stoi(tokens[2]);
+                    }
+                }
+                continue;
             }
 
             if (tokens.size() >= 9) {
