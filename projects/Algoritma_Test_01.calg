@@ -3,12 +3,12 @@ ADVISOR_DS=0
 ADVISOR_OP=0
 ADVISOR_COUNT=1000000
 [NODES]
-30|0|Event Software Start|-415.667|-148.667|x|0|0|Merhaba C-Algorithm!|x < 10|int i = 0|i++
-31|2|Variable Declare|-158.333|-144.333|isim|9||Merhaba C-Algorithm!|x < 10|int i = 0|i++
-32|4|Print Output|86.3334|-152.333|x|0|0|Lütfen isminizi giriniz.|x < 10|int i = 0|i++
-33|5|Input Read|321.333|-151.667|isim|0|0|Merhaba C-Algorithm!|x < 10|int i = 0|i++
-35|4|Print Output|576.333|-153.667|x|0|0|Hoşgeldiniz Mustafacan!|x < 10|int i = 0|i++
-37|1|Program Return (0)|824.512|-158.2|x|0|0|Merhaba C-Algorithm!|x < 10|int i = 0|i++
+30|0|Event Software Start|-292.334|106.333|x|0|0|Merhaba C-Algorithm!|x < 10|int i = 0|i++
+31|2|Variable Declare|-56.6663|85.667|isim|9||Merhaba C-Algorithm!|x < 10|int i = 0|i++
+32|4|Print Output|181.333|91.0003|x|0|0|Lütfen isminizi giriniz.|x < 10|int i = 0|i++
+33|5|Input Read|361.333|63.333|isim|0|0|Merhaba C-Algorithm!|x < 10|int i = 0|i++
+35|4|Print Output|606.333|66.333|x|0|0|Hoşgeldiniz Mustafacan!|x < 10|int i = 0|i++
+37|1|Program Return (0)|856.179|93.4667|x|0|0|Merhaba C-Algorithm!|x < 10|int i = 0|i++
 [WIRES]
 8|30|0|31|0
 9|31|1|32|0

@@ -88,7 +88,8 @@ enum class NodeKind {
     ListOp,             // std::list Islemleri (push_front, push_back, pop_front vb.)
     StackOp,            // std::stack Islemleri (push, pop, top - LIFO)
     QueueOp,            // std::queue Islemleri (push, pop, front - FIFO)
-    ArrayOp             // Sabit Boyutlu Dizi (std::array / C-Dizi)
+    ArrayOp,            // Sabit Boyutlu Dizi (std::array / C-Dizi)
+    MathOp              // Matematiksel Islem (+, -, *, /, %, sqrt, pow, fact)
 };
 
 enum class PointerKind {
@@ -146,6 +147,13 @@ struct FlowNode {
 
     // Girdi / Cikti Ayarlari
     std::string ioText = "Merhaba C-Algorithm!";
+    int printMode = 0; // 0: Duz Metin, 1: Degisken Degeri, 2: Metin + Degisken
+
+    // Matematiksel Islem Ayarlari (MathOp)
+    std::string mathTarget = "sonuc";
+    std::string mathLeft = "a";
+    std::string mathOp = "+"; // "+", "-", "*", "/", "%", "sqrt", "pow", "fact"
+    std::string mathRight = "b";
 
     // Kosul ve Dongu Ayarlari
     std::string conditionExpr = "x < 10";  // If / While / Do-While / For kosulu

@@ -160,6 +160,16 @@ FlowNode* ProjectManager::AddNode(NodeKind kind, const std::string& title, float
             node.pins.push_back({ 0, "Giris", PinType::ExecIn, PinShape::Triangle, 12.0f, 45.0f });
             node.pins.push_back({ 1, "Cikis", PinType::ExecOut, PinShape::Triangle, node.width - 12.0f, 45.0f });
             break;
+        case NodeKind::MathOp:
+            node.width = 230.0f;
+            node.height = 110.0f;
+            node.mathTarget = "sonuc";
+            node.mathLeft = "a";
+            node.mathOp = "+";
+            node.mathRight = "b";
+            node.pins.push_back({ 0, "Giris", PinType::ExecIn, PinShape::Triangle, 12.0f, 45.0f });
+            node.pins.push_back({ 1, "Cikis", PinType::ExecOut, PinShape::Triangle, node.width - 12.0f, 45.0f });
+            break;
         default:
             node.pins.push_back({ 0, "Giris", PinType::ExecIn, PinShape::Triangle, 12.0f, 45.0f });
             node.pins.push_back({ 1, "Cikis", PinType::ExecOut, PinShape::Triangle, node.width - 12.0f, 45.0f });
@@ -457,7 +467,8 @@ std::string ProjectManager::GenerateCppCode() {
     ss << "#include <stack>\n";
     ss << "#include <queue>\n";
     ss << "#include <array>\n";
-    ss << "#include <memory>\n\n";
+    ss << "#include <memory>\n";
+    ss << "#include <cmath>\n\n";
 
     // ── KULLANICI TANIMLI VERI YAPILARI (STRUCTS) ─────────────
     bool hasStructs = false;
@@ -677,13 +688,48 @@ std::string ProjectManager::GenerateCppCode() {
             }
             else if (n->kind == NodeKind::Print) {
                 ss << tabs << "// Ekrana Cikti Basma\n";
-                ss << tabs << "std::cout << \"" << n->ioText << "\" << std::endl;\n\n";
+                if (n->printMode == 1) {
+                    // Sadece Degisken Degeri
+                    std::string varName = !n->targetVar.empty() ? n->targetVar : "x";
+                    ss << tabs << "std::cout << " << varName << " << std::endl;\n\n";
+                } else if (n->printMode == 2) {
+                    // Metin + Degisken
+                    std::string varName = !n->targetVar.empty() ? n->targetVar : "x";
+                    ss << tabs << "std::cout << \"" << n->ioText << " \" << " << varName << " << std::endl;\n\n";
+                } else {
+                    // Duz Metin (Varsayilan)
+                    ss << tabs << "std::cout << \"" << n->ioText << "\" << std::endl;\n\n";
+                }
                 curr = getTargetNode(curr, 1);
             }
             else if (n->kind == NodeKind::Input) {
                 std::string inVar = !n->targetVar.empty() ? n->targetVar : "inputVal";
                 ss << tabs << "// Kullanicidan Girdi Alma (std::cin >> " << inVar << ")\n";
                 ss << tabs << "std::cin >> " << inVar << ";\n\n";
+                curr = getTargetNode(curr, 1);
+            }
+            else if (n->kind == NodeKind::MathOp) {
+                std::string target = !n->mathTarget.empty() ? n->mathTarget : "sonuc";
+                std::string left = !n->mathLeft.empty() ? n->mathLeft : "0";
+                std::string right = !n->mathRight.empty() ? n->mathRight : "0";
+                std::string op = !n->mathOp.empty() ? n->mathOp : "+";
+
+                ss << tabs << "// Matematiksel Islem: " << target << "\n";
+                if (op == "sqrt") {
+                    ss << tabs << target << " = std::sqrt(" << left << ");\n";
+                    ss << tabs << "std::cout << \"[ISLEM] " << target << " = sqrt(\" << " << left << " << \") -> \" << " << target << " << std::endl;\n\n";
+                } else if (op == "pow") {
+                    ss << tabs << target << " = std::pow(" << left << ", " << right << ");\n";
+                    ss << tabs << "std::cout << \"[ISLEM] " << target << " = pow(\" << " << left << " << \", \" << " << right << " << \") -> \" << " << target << " << std::endl;\n\n";
+                } else if (op == "fact") {
+                    ss << tabs << target << " = 1;\n";
+                    ss << tabs << "for (int i = 1; i <= " << left << "; ++i) { " << target << " *= i; }\n";
+                    ss << tabs << "std::cout << \"[ISLEM] " << target << " = \" << " << left << " << \"! (Faktoriyel) -> \" << " << target << " << std::endl;\n\n";
+                } else {
+                    // +, -, *, /, %
+                    ss << tabs << target << " = " << left << " " << op << " " << right << ";\n";
+                    ss << tabs << "std::cout << \"[ISLEM] " << target << " = \" << " << left << " << \" " << op << " \" << " << right << " << \" -> \" << " << target << " << std::endl;\n\n";
+                }
                 curr = getTargetNode(curr, 1);
             }
 

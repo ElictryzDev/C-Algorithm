@@ -1,6 +1,6 @@
 // ========================================================
 // C-ALGORITHM ENGINE - OTOMATIK DERLENEBILIR C++ KODU
-// Proje: Algoritma_Test_01
+// Proje: asdasdasd
 // ========================================================
 
 #include <iostream>
@@ -14,19 +14,15 @@
 #include <memory>
 
 int main() {
-    std::cout << "=== Algoritma_Test_01 CALISIYOR ===" << std::endl;
+    std::cout << "=== asdasdasd CALISIYOR ===" << std::endl;
 
-    // Degisken Tanimlama (isim)
-    std::string isim;
+    // Degisken Tanimlama (x)
+    uint8_t x = 15;
+    std::cout << "[LOG] x = " << x << std::endl;
 
+    uint8_t h = 1;
     // Ekrana Cikti Basma
-    std::cout << "Lütfen isminizi giriniz." << std::endl;
-
-    // Kullanicidan Girdi Alma (std::cin >> isim)
-    std::cin >> isim;
-
-    // Ekrana Cikti Basma
-    std::cout << "Hoşgeldiniz Mustafacan!" << std::endl;
+    std::cout << "hghgfhfghfghfghfg" << std::endl;
 
     std::cout << "=== PROGRAM TAMAMLANDI ===" << std::endl;
     return 0;

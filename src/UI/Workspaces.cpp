@@ -309,6 +309,7 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
                         (n.kind == NodeKind::StackOp)         ? IM_COL32(70, 35, 85, 255) :
                         (n.kind == NodeKind::QueueOp)         ? IM_COL32(95, 60, 20, 255) :
                         (n.kind == NodeKind::ArrayOp)         ? IM_COL32(35, 65, 95, 255) :
+                        (n.kind == NodeKind::MathOp)          ? IM_COL32(30, 95, 110, 255) :
                         (n.kind == NodeKind::BranchIf)        ? IM_COL32(120, 65, 25, 255) :
                         (n.kind == NodeKind::LoopWhile || n.kind == NodeKind::LoopDoWhile || n.kind == NodeKind::LoopFor) ? IM_COL32(75, 35, 95, 255) :
                         IM_COL32(35, 42, 52, 255);
@@ -491,6 +492,9 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
         }
         if (ImGui::MenuItem("Assign Value (Deger Ata)")) {
             pm.AddNode(NodeKind::Assign, "Assign Value", contextMenuPos.x, contextMenuPos.y);
+        }
+        if (ImGui::MenuItem("Math Operation (Matematiksel Islem)")) {
+            pm.AddNode(NodeKind::MathOp, "Math Operation", contextMenuPos.x, contextMenuPos.y);
         }
         if (ImGui::MenuItem("Print Output (cout)")) {
             pm.AddNode(NodeKind::Print, "Print Output", contextMenuPos.x, contextMenuPos.y);
@@ -1005,11 +1009,37 @@ void RenderInspectorPanel(ProjectManager& pm, int& selectedNodeId) {
                     n->multiAssignments.push_back({ "var_" + std::to_string(n->multiAssignments.size() + 1), TypeKind::Int32, "0" });
                 }
             } else if (n->kind == NodeKind::Print) {
-                char textBuf[128];
-                strncpy(textBuf, n->ioText.c_str(), sizeof(textBuf));
-                if (ImGui::InputText(isEn ? "Text to Print" : "Yazdırılacak Metin", textBuf, sizeof(textBuf))) {
-                    n->ioText = textBuf;
+                const char* printModes[] = {
+                    isEn ? "Plain Text (std::cout << \"...\")" : "Düz Metin (std::cout << \"...\")",
+                    isEn ? "Variable Value (std::cout << x)" : "Değişken Değeri (std::cout << x)",
+                    isEn ? "Text + Variable (std::cout << \"...\" << x)" : "Metin + Değişken (std::cout << \"...\" << x)"
+                };
+                ImGui::Combo(isEn ? "Print Mode" : "Yazdırma Modu", &n->printMode, printModes, IM_ARRAYSIZE(printModes));
+
+                if (n->printMode == 0 || n->printMode == 2) {
+                    char textBuf[128];
+                    strncpy(textBuf, n->ioText.c_str(), sizeof(textBuf));
+                    if (ImGui::InputText(isEn ? "Text to Print" : "Yazdırılacak Metin", textBuf, sizeof(textBuf))) {
+                        n->ioText = textBuf;
+                    }
                 }
+                if (n->printMode == 1 || n->printMode == 2) {
+                    char varBuf[64];
+                    strncpy(varBuf, n->targetVar.c_str(), sizeof(varBuf));
+                    if (ImGui::InputText(isEn ? "Variable Name" : "Yazdırılacak Değişken", varBuf, sizeof(varBuf))) {
+                        n->targetVar = varBuf;
+                    }
+                }
+
+                // Canli Kod Onizlemesi
+                if (n->printMode == 1) {
+                    ImGui::TextColored(ImVec4(0.4f, 0.9f, 0.4f, 1.0f), "  -> std::cout << %s << std::endl;", n->targetVar.c_str());
+                } else if (n->printMode == 2) {
+                    ImGui::TextColored(ImVec4(0.4f, 0.9f, 0.4f, 1.0f), "  -> std::cout << \"%s \" << %s << std::endl;", n->ioText.c_str(), n->targetVar.c_str());
+                } else {
+                    ImGui::TextColored(ImVec4(0.4f, 0.9f, 0.4f, 1.0f), "  -> std::cout << \"%s\" << std::endl;", n->ioText.c_str());
+                }
+
             } else if (n->kind == NodeKind::Input) {
                 char varBuf[64];
                 strncpy(varBuf, n->targetVar.c_str(), sizeof(varBuf));
@@ -1065,6 +1095,72 @@ void RenderInspectorPanel(ProjectManager& pm, int& selectedNodeId) {
 
                 if (ImGui::Button(isEn ? "+ Add Extra Assignment" : "+ Ek Atama Ekle")) {
                     n->multiAssignments.push_back({ "x", TypeKind::Int32, "0" });
+                }
+            } else if (n->kind == NodeKind::MathOp) {
+                ImGui::TextColored(ImVec4(0, 0.85f, 1.0f, 1.0f), isEn ? "Math Calculation Setup:" : "Matematiksel Hesaplama Ayarı:");
+
+                char targetBuf[64];
+                strncpy(targetBuf, n->mathTarget.c_str(), sizeof(targetBuf));
+                if (ImGui::InputText(isEn ? "Result Variable" : "Sonucun Yazılacağı Değişken", targetBuf, sizeof(targetBuf))) {
+                    n->mathTarget = targetBuf;
+                }
+
+                char leftBuf[64];
+                strncpy(leftBuf, n->mathLeft.c_str(), sizeof(leftBuf));
+                if (ImGui::InputText(isEn ? "1st Value / Variable" : "1. Terim / Değişken", leftBuf, sizeof(leftBuf))) {
+                    n->mathLeft = leftBuf;
+                }
+
+                const char* ops[] = {
+                    "+ (Toplama / Add)",
+                    "- (Cikarma / Subtract)",
+                    "* (Carpma / Multiply)",
+                    "/ (Bolme / Divide)",
+                    "% (Mod Alma / Modulo)",
+                    "sqrt (Karekok / Square Root)",
+                    "pow (Us Alma / Power)",
+                    "fact (Faktoriyel / Factorial n!)"
+                };
+                const char* opTokens[] = { "+", "-", "*", "/", "%", "sqrt", "pow", "fact" };
+
+                int currentOpIdx = 0;
+                for (int i = 0; i < IM_ARRAYSIZE(opTokens); ++i) {
+                    if (n->mathOp == opTokens[i]) { currentOpIdx = i; break; }
+                }
+
+                if (ImGui::Combo(isEn ? "Operation" : "İşlem Türü", &currentOpIdx, ops, IM_ARRAYSIZE(ops))) {
+                    n->mathOp = opTokens[currentOpIdx];
+                    if (n->mathOp == "fact") n->title = isEn ? "Factorial (!)" : "Faktöriyel (!)";
+                    else if (n->mathOp == "sqrt") n->title = isEn ? "Square Root (sqrt)" : "Karekök (sqrt)";
+                    else n->title = "Math (" + n->mathOp + ")";
+                }
+
+                bool isUnary = (n->mathOp == "sqrt" || n->mathOp == "fact");
+                if (!isUnary) {
+                    char rightBuf[64];
+                    strncpy(rightBuf, n->mathRight.c_str(), sizeof(rightBuf));
+                    if (ImGui::InputText(isEn ? "2nd Value / Variable" : "2. Terim / Değişken", rightBuf, sizeof(rightBuf))) {
+                        n->mathRight = rightBuf;
+                    }
+                } else {
+                    ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f),
+                        isEn ? "Single-operand operation (only 1st value is used)."
+                             : "Tek terimli işlem (yalnızca 1. terim kullanılır).");
+                }
+
+                // Canlı Kod Önizlemesi
+                ImGui::Spacing();
+                ImGui::Separator();
+                ImGui::TextColored(ImVec4(0.4f, 0.9f, 0.4f, 1.0f), isEn ? "Generated C++ Code Preview:" : "Üretilen C++ Önizlemesi:");
+                if (n->mathOp == "sqrt") {
+                    ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "  %s = std::sqrt(%s);", n->mathTarget.c_str(), n->mathLeft.c_str());
+                } else if (n->mathOp == "pow") {
+                    ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "  %s = std::pow(%s, %s);", n->mathTarget.c_str(), n->mathLeft.c_str(), n->mathRight.c_str());
+                } else if (n->mathOp == "fact") {
+                    ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "  // Faktoriyel for dongusu (%s!)", n->mathLeft.c_str());
+                    ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "  %s = 1; for(int i=1; i<=%s; ++i) %s *= i;", n->mathTarget.c_str(), n->mathLeft.c_str(), n->mathTarget.c_str());
+                } else {
+                    ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "  %s = %s %s %s;", n->mathTarget.c_str(), n->mathLeft.c_str(), n->mathOp.c_str(), n->mathRight.c_str());
                 }
             } else if (n->kind == NodeKind::LoopWhile || n->kind == NodeKind::LoopDoWhile) {
                 bool isDoWhile = (n->kind == NodeKind::LoopDoWhile);
