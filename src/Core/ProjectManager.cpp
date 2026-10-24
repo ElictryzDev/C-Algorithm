@@ -536,11 +536,16 @@ std::string ProjectManager::GenerateCppCode() {
     ss << "    SetConsoleCP(65001);\n\n";
     ss << "    std::cout << \"=== " << projectName << " CALISIYOR ===\" << std::endl;\n\n";
 
-    // Helper lambda: verilen pinden çıkan düğümü bul
+    // Helper lambda: verilen pinden çıkan düğümü bul (Akıllı Çift Yönlü Arama)
     auto getTargetNode = [&](int fromNodeId, int pinIndex) -> int {
         for (const auto& w : wires) {
+            // 1. Normal yon: Bu dugumden cikan kablo
             if (w.fromNode == fromNodeId && w.fromPin == pinIndex) {
                 return w.toNode;
+            }
+            // 2. Ters yon: Kullanici kabloyu diger dugumden bu dugume dogru bagladiysa
+            if (w.toNode == fromNodeId && w.toPin == pinIndex) {
+                return w.fromNode;
             }
         }
         return -1;
