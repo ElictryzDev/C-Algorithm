@@ -189,6 +189,10 @@ struct FlowNode {
     float width = 220.0f;
     float height = 110.0f;
     std::vector<FlowPin> pins;
+
+    // Hata ve Uyari Durumu (Gorsel Linter)
+    bool hasWarning = false;
+    std::string warningText;
 };
 
 struct FlowWire {

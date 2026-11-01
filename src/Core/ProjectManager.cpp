@@ -65,31 +65,50 @@ FlowNode* ProjectManager::AddNode(NodeKind kind, const std::string& title, float
     node.title = title;
     node.x = x;
     node.y = y;
-    node.width = 210.0f;
-    node.height = 95.0f;
+    node.width = 230.0f;
+    node.height = 90.0f;
 
     switch (kind) {
         case NodeKind::Start:
-            node.pins.push_back({ 0, "Cikis", PinType::ExecOut, PinShape::Triangle, node.width - 12.0f, 45.0f });
+            node.width = 190.0f;
+            node.height = 65.0f;
+            node.pins.push_back({ 0, "Cikis", PinType::ExecOut, PinShape::Triangle, node.width - 14.0f, node.height * 0.5f });
             break;
         case NodeKind::End:
-            node.pins.push_back({ 0, "Giris", PinType::ExecIn, PinShape::Triangle, 12.0f, 45.0f });
+            node.width = 190.0f;
+            node.height = 65.0f;
+            node.pins.push_back({ 0, "Giris", PinType::ExecIn, PinShape::Triangle, 14.0f, node.height * 0.5f });
             break;
         case NodeKind::BranchIf:
-            node.height = 115.0f;
-            node.pins.push_back({ 0, "Giris", PinType::ExecIn, PinShape::Triangle, 12.0f, 45.0f });
-            node.pins.push_back({ 1, "True", PinType::ExecOut, PinShape::Diamond, node.width - 12.0f, 45.0f });
-            node.pins.push_back({ 2, "False", PinType::ExecOut, PinShape::Diamond, node.width - 12.0f, 80.0f });
+            node.width = 240.0f;
+            node.height = 110.0f;
+            node.pins.push_back({ 0, "Giris", PinType::ExecIn, PinShape::Triangle, 14.0f, node.height * 0.5f });
+            node.pins.push_back({ 1, "True", PinType::ExecOut, PinShape::Diamond, node.width - 14.0f, node.height * 0.5f });
+            node.pins.push_back({ 2, "False", PinType::ExecOut, PinShape::Diamond, node.width * 0.5f, node.height - 12.0f });
             break;
         case NodeKind::LoopWhile:
         case NodeKind::LoopDoWhile:
         case NodeKind::LoopFor:
-            node.height = 115.0f;
-            node.pins.push_back({ 0, "Giris", PinType::ExecIn, PinShape::Triangle, 12.0f, 45.0f });
-            node.pins.push_back({ 1, "Govde (Body)", PinType::ExecOut, PinShape::Triangle, node.width - 12.0f, 45.0f });
-            node.pins.push_back({ 2, "Bitti (Exit)", PinType::ExecOut, PinShape::Triangle, node.width - 12.0f, 80.0f });
+            node.width = 240.0f;
+            node.height = 100.0f;
+            node.pins.push_back({ 0, "Giris", PinType::ExecIn, PinShape::Triangle, 14.0f, node.height * 0.5f });
+            node.pins.push_back({ 1, "Govde (Body)", PinType::ExecOut, PinShape::Triangle, node.width - 14.0f, node.height * 0.35f });
+            node.pins.push_back({ 2, "Bitti (Exit)", PinType::ExecOut, PinShape::Triangle, node.width - 14.0f, node.height * 0.75f });
+            break;
+        case NodeKind::Input:
+            node.width = 230.0f;
+            node.height = 80.0f;
+            node.pins.push_back({ 0, "Giris", PinType::ExecIn, PinShape::Triangle, 14.0f, node.height * 0.5f });
+            node.pins.push_back({ 1, "Cikis", PinType::ExecOut, PinShape::Triangle, node.width - 14.0f, node.height * 0.5f });
+            break;
+        case NodeKind::Print:
+            node.width = 240.0f;
+            node.height = 85.0f;
+            node.pins.push_back({ 0, "Giris", PinType::ExecIn, PinShape::Triangle, 14.0f, node.height * 0.5f });
+            node.pins.push_back({ 1, "Cikis", PinType::ExecOut, PinShape::Triangle, node.width - 14.0f, node.height * 0.5f });
             break;
         case NodeKind::SwitchCase:
+            node.width = 240.0f;
             node.height = 150.0f;
             node.pins.push_back({ 0, "Giris", PinType::ExecIn, PinShape::Triangle, 12.0f, 45.0f });
             node.pins.push_back({ 1, "Case 1", PinType::ExecOut, PinShape::Diamond, node.width - 12.0f, 45.0f });
@@ -98,7 +117,7 @@ FlowNode* ProjectManager::AddNode(NodeKind kind, const std::string& title, float
             node.pins.push_back({ 4, "Bitti (Exit)", PinType::ExecOut, PinShape::Triangle, node.width - 12.0f, 135.0f });
             break;
         case NodeKind::StructDef:
-            node.width = 240.0f;
+            node.width = 250.0f;
             node.height = 120.0f;
             node.structName = "Oyuncu";
             node.hasDestructor = true;
@@ -108,71 +127,71 @@ FlowNode* ProjectManager::AddNode(NodeKind kind, const std::string& title, float
                 { "puan", TypeKind::Int32, "0", true },
                 { "isim", TypeKind::String, "\"Oyuncu_1\"", true }
             };
-            node.pins.push_back({ 0, "Giris", PinType::ExecIn, PinShape::Triangle, 12.0f, 45.0f });
-            node.pins.push_back({ 1, "Cikis", PinType::ExecOut, PinShape::Triangle, node.width - 12.0f, 45.0f });
+            node.pins.push_back({ 0, "Giris", PinType::ExecIn, PinShape::Triangle, 12.0f, node.height * 0.5f });
+            node.pins.push_back({ 1, "Cikis", PinType::ExecOut, PinShape::Triangle, node.width - 12.0f, node.height * 0.5f });
             break;
         case NodeKind::VectorOp:
             node.width = 230.0f;
-            node.height = 110.0f;
+            node.height = 100.0f;
             node.dsName = "sayilar";
             node.vectorName = "sayilar";
             node.dsOpType = "push_back";
             node.vectorOpType = "push_back";
             node.dsOpArg = "10";
             node.vectorOpArg = "10";
-            node.pins.push_back({ 0, "Giris", PinType::ExecIn, PinShape::Triangle, 12.0f, 45.0f });
-            node.pins.push_back({ 1, "Cikis", PinType::ExecOut, PinShape::Triangle, node.width - 12.0f, 45.0f });
+            node.pins.push_back({ 0, "Giris", PinType::ExecIn, PinShape::Triangle, 12.0f, node.height * 0.5f });
+            node.pins.push_back({ 1, "Cikis", PinType::ExecOut, PinShape::Triangle, node.width - 12.0f, node.height * 0.5f });
             break;
         case NodeKind::ListOp:
             node.width = 230.0f;
-            node.height = 110.0f;
+            node.height = 100.0f;
             node.dsName = "bagliListe";
             node.dsOpType = "push_back";
             node.dsOpArg = "42";
-            node.pins.push_back({ 0, "Giris", PinType::ExecIn, PinShape::Triangle, 12.0f, 45.0f });
-            node.pins.push_back({ 1, "Cikis", PinType::ExecOut, PinShape::Triangle, node.width - 12.0f, 45.0f });
+            node.pins.push_back({ 0, "Giris", PinType::ExecIn, PinShape::Triangle, 12.0f, node.height * 0.5f });
+            node.pins.push_back({ 1, "Cikis", PinType::ExecOut, PinShape::Triangle, node.width - 12.0f, node.height * 0.5f });
             break;
         case NodeKind::StackOp:
             node.width = 230.0f;
-            node.height = 110.0f;
+            node.height = 100.0f;
             node.dsName = "yiginStack";
             node.dsOpType = "push";
             node.dsOpArg = "50";
-            node.pins.push_back({ 0, "Giris", PinType::ExecIn, PinShape::Triangle, 12.0f, 45.0f });
-            node.pins.push_back({ 1, "Cikis", PinType::ExecOut, PinShape::Triangle, node.width - 12.0f, 45.0f });
+            node.pins.push_back({ 0, "Giris", PinType::ExecIn, PinShape::Triangle, 12.0f, node.height * 0.5f });
+            node.pins.push_back({ 1, "Cikis", PinType::ExecOut, PinShape::Triangle, node.width - 12.0f, node.height * 0.5f });
             break;
         case NodeKind::QueueOp:
             node.width = 230.0f;
-            node.height = 110.0f;
+            node.height = 100.0f;
             node.dsName = "kuyrukQueue";
             node.dsOpType = "push";
             node.dsOpArg = "99";
-            node.pins.push_back({ 0, "Giris", PinType::ExecIn, PinShape::Triangle, 12.0f, 45.0f });
-            node.pins.push_back({ 1, "Cikis", PinType::ExecOut, PinShape::Triangle, node.width - 12.0f, 45.0f });
+            node.pins.push_back({ 0, "Giris", PinType::ExecIn, PinShape::Triangle, 12.0f, node.height * 0.5f });
+            node.pins.push_back({ 1, "Cikis", PinType::ExecOut, PinShape::Triangle, node.width - 12.0f, node.height * 0.5f });
             break;
         case NodeKind::ArrayOp:
             node.width = 230.0f;
-            node.height = 110.0f;
+            node.height = 100.0f;
             node.dsName = "sabitDizi";
             node.arraySize = 5;
             node.arrayIndex = 0;
             node.dsOpArg = "100";
-            node.pins.push_back({ 0, "Giris", PinType::ExecIn, PinShape::Triangle, 12.0f, 45.0f });
-            node.pins.push_back({ 1, "Cikis", PinType::ExecOut, PinShape::Triangle, node.width - 12.0f, 45.0f });
+            node.pins.push_back({ 0, "Giris", PinType::ExecIn, PinShape::Triangle, 12.0f, node.height * 0.5f });
+            node.pins.push_back({ 1, "Cikis", PinType::ExecOut, PinShape::Triangle, node.width - 12.0f, node.height * 0.5f });
             break;
         case NodeKind::MathOp:
             node.width = 230.0f;
-            node.height = 110.0f;
+            node.height = 90.0f;
             node.mathTarget = "sonuc";
             node.mathLeft = "a";
             node.mathOp = "+";
             node.mathRight = "b";
-            node.pins.push_back({ 0, "Giris", PinType::ExecIn, PinShape::Triangle, 12.0f, 45.0f });
-            node.pins.push_back({ 1, "Cikis", PinType::ExecOut, PinShape::Triangle, node.width - 12.0f, 45.0f });
+            node.pins.push_back({ 0, "Giris", PinType::ExecIn, PinShape::Triangle, 12.0f, node.height * 0.5f });
+            node.pins.push_back({ 1, "Cikis", PinType::ExecOut, PinShape::Triangle, node.width - 12.0f, node.height * 0.5f });
             break;
         default:
-            node.pins.push_back({ 0, "Giris", PinType::ExecIn, PinShape::Triangle, 12.0f, 45.0f });
-            node.pins.push_back({ 1, "Cikis", PinType::ExecOut, PinShape::Triangle, node.width - 12.0f, 45.0f });
+            node.pins.push_back({ 0, "Giris", PinType::ExecIn, PinShape::Triangle, 12.0f, node.height * 0.5f });
+            node.pins.push_back({ 1, "Cikis", PinType::ExecOut, PinShape::Triangle, node.width - 12.0f, node.height * 0.5f });
             break;
     }
 

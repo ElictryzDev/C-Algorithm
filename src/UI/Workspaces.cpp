@@ -89,6 +89,276 @@ void RenderProjectGatingModal(ProjectManager& pm) {
 static ImVec2 g_flowPanOffset = { 0.0f, 0.0f };
 static float g_flowZoomLevel = 1.0f;
 
+// =========================================================================
+// C-ALGORITHM MODERN FLOWCHART & NEON ENGINE HELPERS
+// =========================================================================
+
+enum class FlowchartShape {
+    Pill,           // Start, End (Kapsül)
+    Diamond,        // BranchIf (Baklava Dilimi)
+    Parallelogram,  // Input, Print (Eğimli Paralelkenar)
+    Hexagon,        // LoopWhile, LoopDoWhile, LoopFor (Altıgen)
+    Rectangle       // VariableDeclare, Assign, MathOp, StructDef, DataStructures (Modern Kart)
+};
+
+inline FlowchartShape GetFlowchartShape(NodeKind kind) {
+    switch (kind) {
+        case NodeKind::Start:
+        case NodeKind::End:
+            return FlowchartShape::Pill;
+        case NodeKind::BranchIf:
+            return FlowchartShape::Diamond;
+        case NodeKind::Input:
+        case NodeKind::Print:
+            return FlowchartShape::Parallelogram;
+        case NodeKind::LoopWhile:
+        case NodeKind::LoopDoWhile:
+        case NodeKind::LoopFor:
+            return FlowchartShape::Hexagon;
+        default:
+            return FlowchartShape::Rectangle;
+    }
+}
+
+// Düğüm Geometrisi ve Pin Koordinatlarını Flowchart Standardına Göre Eşitle
+inline void SyncNodeGeometryAndPins(FlowNode& node) {
+    switch (node.kind) {
+        case NodeKind::Start:
+            node.width = 190.0f; node.height = 65.0f;
+            if (!node.pins.empty()) {
+                node.pins[0].relX = node.width - 14.0f;
+                node.pins[0].relY = node.height * 0.5f;
+            }
+            break;
+        case NodeKind::End:
+            node.width = 190.0f; node.height = 65.0f;
+            if (!node.pins.empty()) {
+                node.pins[0].relX = 14.0f;
+                node.pins[0].relY = node.height * 0.5f;
+            }
+            break;
+        case NodeKind::BranchIf:
+            node.width = 240.0f; node.height = 110.0f;
+            if (node.pins.size() >= 3) {
+                node.pins[0].relX = 14.0f;           node.pins[0].relY = node.height * 0.5f;  // Giriş (Sol)
+                node.pins[1].relX = node.width - 14.0f; node.pins[1].relY = node.height * 0.5f;  // True / Evet (Sağ)
+                node.pins[2].relX = node.width * 0.5f;  node.pins[2].relY = node.height - 12.0f; // False / Hayır (Alt)
+            }
+            break;
+        case NodeKind::Input:
+            node.width = 230.0f; node.height = 80.0f;
+            if (node.pins.size() >= 2) {
+                node.pins[0].relX = 14.0f;           node.pins[0].relY = node.height * 0.5f;
+                node.pins[1].relX = node.width - 14.0f; node.pins[1].relY = node.height * 0.5f;
+            }
+            break;
+        case NodeKind::Print:
+            node.width = 240.0f; node.height = 85.0f;
+            if (node.pins.size() >= 2) {
+                node.pins[0].relX = 14.0f;           node.pins[0].relY = node.height * 0.5f;
+                node.pins[1].relX = node.width - 14.0f; node.pins[1].relY = node.height * 0.5f;
+            }
+            break;
+        case NodeKind::LoopWhile:
+        case NodeKind::LoopDoWhile:
+        case NodeKind::LoopFor:
+            node.width = 240.0f; node.height = 100.0f;
+            if (node.pins.size() >= 3) {
+                node.pins[0].relX = 14.0f;           node.pins[0].relY = node.height * 0.5f;
+                node.pins[1].relX = node.width - 14.0f; node.pins[1].relY = node.height * 0.35f;
+                node.pins[2].relX = node.width - 14.0f; node.pins[2].relY = node.height * 0.75f;
+            }
+            break;
+        case NodeKind::VariableDeclare:
+        case NodeKind::Assign:
+        case NodeKind::MathOp:
+            node.width = 230.0f; node.height = 90.0f;
+            if (node.pins.size() >= 2) {
+                node.pins[0].relX = 12.0f;           node.pins[0].relY = node.height * 0.5f;
+                node.pins[1].relX = node.width - 12.0f; node.pins[1].relY = node.height * 0.5f;
+            }
+            break;
+        default:
+            if (node.pins.size() >= 2) {
+                node.pins[0].relX = 12.0f;           node.pins[0].relY = node.height * 0.5f;
+                node.pins[1].relX = node.width - 12.0f; node.pins[1].relY = node.height * 0.5f;
+            }
+            break;
+    }
+}
+
+// Çok Katmanlı Neon Işıma Dış Çizgisi (Polyline)
+inline void DrawNeonPolyline(ImDrawList* drawList, const ImVec2* points, int count, ImU32 baseCol, float baseThick, bool closed = true) {
+    ImVec4 c = ImGui::ColorConvertU32ToFloat4(baseCol);
+    ImU32 outerCol = ImGui::ColorConvertFloat4ToU32(ImVec4(c.x, c.y, c.z, c.w * 0.20f));
+    ImU32 midCol   = ImGui::ColorConvertFloat4ToU32(ImVec4(c.x, c.y, c.z, c.w * 0.50f));
+
+    drawList->AddPolyline(points, count, outerCol, closed ? ImDrawFlags_Closed : ImDrawFlags_None, baseThick + 6.0f);
+    drawList->AddPolyline(points, count, midCol,   closed ? ImDrawFlags_Closed : ImDrawFlags_None, baseThick + 2.5f);
+    drawList->AddPolyline(points, count, baseCol,  closed ? ImDrawFlags_Closed : ImDrawFlags_None, baseThick);
+}
+
+// Çok Katmanlı Neon Işıma Dikdörtgeni (Rect)
+inline void DrawNeonRect(ImDrawList* drawList, ImVec2 pMin, ImVec2 pMax, ImU32 baseCol, float rounding, float baseThick) {
+    ImVec4 c = ImGui::ColorConvertU32ToFloat4(baseCol);
+    ImU32 outerCol = ImGui::ColorConvertFloat4ToU32(ImVec4(c.x, c.y, c.z, c.w * 0.20f));
+    ImU32 midCol   = ImGui::ColorConvertFloat4ToU32(ImVec4(c.x, c.y, c.z, c.w * 0.50f));
+
+    drawList->AddRect(pMin, pMax, outerCol, rounding, 0, baseThick + 6.0f);
+    drawList->AddRect(pMin, pMax, midCol,   rounding, 0, baseThick + 2.5f);
+    drawList->AddRect(pMin, pMax, baseCol,  rounding, 0, baseThick);
+}
+
+struct NodeColorTheme {
+    ImU32 bgCol;
+    ImU32 neonCol;
+    ImU32 headCol;
+    const char* categoryBadge;
+};
+
+inline NodeColorTheme GetNodeTheme(NodeKind kind) {
+    switch (kind) {
+        case NodeKind::Start:
+            return { IM_COL32(10, 32, 22, 240), IM_COL32(16, 185, 129, 255), IM_COL32(16, 185, 129, 45), "BASLANGIC" };
+        case NodeKind::End:
+            return { IM_COL32(36, 12, 16, 240), IM_COL32(239, 68, 68, 255), IM_COL32(239, 68, 68, 45), "BITIS" };
+        case NodeKind::VariableDeclare:
+            return { IM_COL32(12, 26, 44, 240), IM_COL32(14, 165, 233, 255), IM_COL32(14, 165, 233, 50), "DEGISKEN" };
+        case NodeKind::Assign:
+            return { IM_COL32(26, 16, 42, 240), IM_COL32(168, 85, 247, 255), IM_COL32(168, 85, 247, 50), "ATAMA" };
+        case NodeKind::MathOp:
+            return { IM_COL32(10, 32, 38, 240), IM_COL32(6, 182, 212, 255), IM_COL32(6, 182, 212, 50), "MATEMATIK" };
+        case NodeKind::Input:
+            return { IM_COL32(10, 34, 34, 240), IM_COL32(20, 184, 166, 255), IM_COL32(20, 184, 166, 50), "GIRDI (cin)" };
+        case NodeKind::Print:
+            return { IM_COL32(24, 18, 46, 240), IM_COL32(139, 92, 246, 255), IM_COL32(139, 92, 246, 50), "CIKTI (cout)" };
+        case NodeKind::BranchIf:
+            return { IM_COL32(38, 26, 10, 240), IM_COL32(245, 158, 11, 255), IM_COL32(245, 158, 11, 50), "KOSUL (if)" };
+        case NodeKind::LoopWhile:
+            return { IM_COL32(38, 14, 24, 240), IM_COL32(244, 63, 94, 255), IM_COL32(244, 63, 94, 50), "DONGU (while)" };
+        case NodeKind::LoopDoWhile:
+            return { IM_COL32(38, 14, 24, 240), IM_COL32(244, 63, 94, 255), IM_COL32(244, 63, 94, 50), "DONGU (do-while)" };
+        case NodeKind::LoopFor:
+            return { IM_COL32(38, 14, 24, 240), IM_COL32(244, 63, 94, 255), IM_COL32(244, 63, 94, 50), "DONGU (for)" };
+        case NodeKind::SwitchCase:
+            return { IM_COL32(32, 24, 14, 240), IM_COL32(217, 119, 6, 255), IM_COL32(217, 119, 6, 50), "SWITCH-CASE" };
+        case NodeKind::StructDef:
+            return { IM_COL32(34, 22, 12, 240), IM_COL32(217, 119, 6, 255), IM_COL32(217, 119, 6, 50), "STRUCT" };
+        default:
+            return { IM_COL32(18, 20, 40, 240), IM_COL32(99, 102, 241, 255), IM_COL32(99, 102, 241, 50), "VERI YAPISI" };
+    }
+}
+
+inline std::string FormatNodeLiveContent(const FlowNode& n) {
+    switch (n.kind) {
+        case NodeKind::Start:
+            return "main() { ... }";
+        case NodeKind::End:
+            return "return 0;";
+        case NodeKind::VariableDeclare: {
+            if (!n.multiAssignments.empty()) {
+                std::string s;
+                for (size_t i = 0; i < n.multiAssignments.size(); i++) {
+                    if (i > 0) s += ", ";
+                    s += n.multiAssignments[i].varName + "=" + n.multiAssignments[i].valueExpr;
+                }
+                return s;
+            }
+            std::string prefix = n.isConst ? "const " : "";
+            std::string typeStr = n.isCustomType ? n.customTypeName : TypeKindToString(n.varType);
+            return prefix + typeStr + " " + n.targetVar + " = " + n.expr;
+        }
+        case NodeKind::Assign: {
+            if (!n.multiAssignments.empty()) {
+                std::string s;
+                for (size_t i = 0; i < n.multiAssignments.size(); i++) {
+                    if (i > 0) s += ", ";
+                    s += n.multiAssignments[i].varName + "=" + n.multiAssignments[i].valueExpr;
+                }
+                return s;
+            }
+            return n.targetVar + " = " + n.expr;
+        }
+        case NodeKind::MathOp: {
+            if (n.mathOp == "sqrt") return n.mathTarget + " = sqrt(" + n.mathLeft + ")";
+            if (n.mathOp == "fact") return n.mathTarget + " = fact(" + n.mathLeft + ")";
+            return n.mathTarget + " = " + n.mathLeft + " " + n.mathOp + " " + n.mathRight;
+        }
+        case NodeKind::Input:
+            return "cin >> " + n.targetVar;
+        case NodeKind::Print: {
+            if (n.printMode == 0) return "cout << \"" + n.ioText + "\"";
+            if (n.printMode == 1) return "cout << " + n.targetVar;
+            return "cout << \"" + n.ioText + "\" << " + n.targetVar;
+        }
+        case NodeKind::BranchIf:
+            return n.conditionExpr.empty() ? "x < 10 ?" : (n.conditionExpr + " ?");
+        case NodeKind::LoopWhile:
+            return "while (" + n.conditionExpr + ")";
+        case NodeKind::LoopDoWhile:
+            return "do { ... } while (" + n.conditionExpr + ")";
+        case NodeKind::LoopFor:
+            return "for (" + n.loopInit + "; " + n.conditionExpr + "; " + n.loopStep + ")";
+        case NodeKind::SwitchCase:
+            return "switch (" + n.switchVar + ")";
+        case NodeKind::StructDef:
+            return "struct " + n.structName + " (" + std::to_string(n.structMembers.size()) + " alan)";
+        case NodeKind::VectorOp:
+        case NodeKind::ListOp:
+        case NodeKind::StackOp:
+        case NodeKind::QueueOp:
+        case NodeKind::ArrayOp:
+            return n.dsName + "." + n.dsOpType + "(" + n.dsOpArg + ")";
+        default:
+            return n.title;
+    }
+}
+
+// Canlı Hata & Bağlantı Denetimi (Live Flow Linter)
+inline void UpdateFlowDiagnostics(ProjectManager& pm) {
+    for (auto& n : pm.nodes) {
+        n.hasWarning = false;
+        n.warningText.clear();
+
+        // Start haricinde Giriş pini (pin 0) bağlı mı?
+        if (n.kind != NodeKind::Start) {
+            bool hasIn = false;
+            for (const auto& w : pm.wires) {
+                if ((w.toNode == n.id && w.toPin == 0) || (w.fromNode == n.id && w.fromPin == 0)) {
+                    hasIn = true;
+                    break;
+                }
+            }
+            if (!hasIn) {
+                n.hasWarning = true;
+                n.warningText = "Giris baglantisi eksik";
+            }
+        }
+
+        // End haricinde Çıkış pini bağlı mı?
+        if (!n.hasWarning && n.kind != NodeKind::End) {
+            bool hasOut = false;
+            for (const auto& w : pm.wires) {
+                if (n.kind == NodeKind::Start) {
+                    if ((w.fromNode == n.id && w.fromPin == 0) || (w.toNode == n.id && w.toPin == 0)) {
+                        hasOut = true;
+                        break;
+                    }
+                } else {
+                    if ((w.fromNode == n.id && w.fromPin > 0) || (w.toNode == n.id && w.toPin > 0)) {
+                        hasOut = true;
+                        break;
+                    }
+                }
+            }
+            if (!hasOut) {
+                n.hasWarning = true;
+                n.warningText = "Cikis baglantisi eksik";
+            }
+        }
+    }
+}
+
 // ── 2. Akis Semasi Grafigi (Flow Graph Workspace) ────────────────────────
 void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
     bool isEn = (pm.currentLanguage == AppLanguage::English);
@@ -220,50 +490,6 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
         selectedNodeId = 0;
     }
 
-    // Bezier Tellerini Ciz ve Alt + Sol Tik ile Koparma Kontrolu
-    int wireToDelete = -1;
-    bool isAltDown = ImGui::GetIO().KeyAlt;
-
-    for (const auto& w : pm.wires) {
-        FlowNode* fn = pm.GetNode(w.fromNode);
-        FlowNode* tn = pm.GetNode(w.toNode);
-        if (fn && tn && w.fromPin < (int)fn->pins.size() && w.toPin < (int)tn->pins.size()) {
-            ImVec2 p1(screenOrigin.x + g_flowPanOffset.x + (fn->x + fn->pins[w.fromPin].relX) * g_flowZoomLevel,
-                      screenOrigin.y + g_flowPanOffset.y + (fn->y + fn->pins[w.fromPin].relY) * g_flowZoomLevel);
-            ImVec2 p2(screenOrigin.x + g_flowPanOffset.x + (tn->x + tn->pins[w.toPin].relX) * g_flowZoomLevel,
-                      screenOrigin.y + g_flowPanOffset.y + (tn->y + tn->pins[w.toPin].relY) * g_flowZoomLevel);
-
-            float dx = fabsf(p2.x - p1.x) * 0.5f;
-            if (dx < 40.0f * g_flowZoomLevel) dx = 40.0f * g_flowZoomLevel;
-            ImVec2 c1(p1.x + dx, p1.y);
-            ImVec2 c2(p2.x - dx, p2.y);
-
-            // Alt tusuna basiliyken kablonun orta noktasina yaklasilinca kirmizi makas uyarisi ver
-            ImVec2 midPt((p1.x + p2.x) * 0.5f, (p1.y + p2.y) * 0.5f);
-            float distToMid = hypotf(mousePos.x - midPt.x, mousePos.y - midPt.y);
-
-            bool wireHovered = (distToMid < 25.0f * g_flowZoomLevel);
-
-            if (wireHovered && isAltDown) {
-                drawList->AddBezierCubic(p1, c1, c2, p2, IM_COL32(255, 60, 60, 255), 4.0f);
-                drawList->AddCircleFilled(midPt, 7.0f, IM_COL32(255, 30, 30, 255));
-                drawList->AddText(ImVec2(midPt.x + 10, midPt.y - 10), IM_COL32(255, 100, 100, 255), "[Kabloyu Kes]");
-
-                if (ImGui::IsMouseClicked(0)) {
-                    wireToDelete = w.id;
-                }
-            } else {
-                drawList->AddBezierCubic(p1, c1, c2, p2, IM_COL32(0, 120, 200, 70), 5.0f);
-                drawList->AddBezierCubic(p1, c1, c2, p2, IM_COL32(0, 200, 232, 255), 2.5f);
-            }
-        }
-    }
-
-    if (wireToDelete > 0) {
-        pm.DisconnectWire(wireToDelete);
-        pm.statusMessage = "Kablo baglantisi koparildi (Alt + Tik).";
-    }
-
     // ── Etkilesim Durumlari ──────────────────────────────────────────────
     static int draggingId = -1;
     static ImVec2 dragOffset = { 0, 0 };
@@ -281,9 +507,18 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
     // Sag Tik Menusu Icin Tiklanan Nokta
     static ImVec2 contextMenuPos = { 0, 0 };
 
-    // ── 1. Dugumlerin ve Pinlerin Cizimi ─────────────────────────────────
     int hoveredPinNode = -1;
     int hoveredPinIdx = -1;
+
+    // 0. Pin ve Geometri Senkronizasyonu & Canlı Hata Denetimi
+    for (auto& n : pm.nodes) {
+        SyncNodeGeometryAndPins(n);
+    }
+    UpdateFlowDiagnostics(pm);
+
+    // ── ADIM 1: DUGUM GOVDELERI VE NEON ISIMALARI ─────────────────────────
+    float animPulse = sinf((float)ImGui::GetTime() * 4.5f) * 0.35f + 0.65f;
+    ImU32 warnNeonCol = IM_COL32(255, (int)(70 * animPulse), (int)(50 * animPulse), (int)(255 * animPulse));
 
     for (auto& n : pm.nodes) {
         ImVec2 pMin(screenOrigin.x + g_flowPanOffset.x + n.x * g_flowZoomLevel,
@@ -291,33 +526,180 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
         ImVec2 pMax(pMin.x + n.width * g_flowZoomLevel,
                     pMin.y + n.height * g_flowZoomLevel);
 
-        bool isNodeHovered = (mousePos.x >= pMin.x && mousePos.x <= pMax.x && mousePos.y >= pMin.y && mousePos.y <= pMax.y);
         bool isSelected = (selectedNodeId == n.id || multiSelectedNodes.count(n.id) > 0);
+        NodeColorTheme theme = GetNodeTheme(n.kind);
+        FlowchartShape shape = GetFlowchartShape(n.kind);
 
-        // Dugum Karti Govdesi
-        drawList->AddRectFilled(pMin, pMax, IM_COL32(20, 24, 30, 255), 8.0f * g_flowZoomLevel);
-        ImU32 borderCol = isSelected ? IM_COL32(0, 210, 255, 255) : IM_COL32(45, 52, 64, 255);
-        drawList->AddRect(pMin, pMax, borderCol, 8.0f * g_flowZoomLevel, 0, isSelected ? 2.5f : 1.2f);
+        ImU32 borderCol = n.hasWarning ? warnNeonCol : (isSelected ? IM_COL32(0, 240, 255, 255) : theme.neonCol);
+        float borderThick = isSelected ? 2.6f : 1.4f;
 
-        // Baslik Seridi
-        ImU32 headCol = (n.kind == NodeKind::Start)           ? IM_COL32(28, 75, 45, 255) :
-                        (n.kind == NodeKind::End)             ? IM_COL32(85, 30, 30, 255) :
-                        (n.kind == NodeKind::VariableDeclare) ? IM_COL32(25, 58, 80, 255) :
-                        (n.kind == NodeKind::StructDef)       ? IM_COL32(80, 50, 20, 255) :
-                        (n.kind == NodeKind::VectorOp)        ? IM_COL32(20, 70, 85, 255) :
-                        (n.kind == NodeKind::ListOp)          ? IM_COL32(25, 80, 65, 255) :
-                        (n.kind == NodeKind::StackOp)         ? IM_COL32(70, 35, 85, 255) :
-                        (n.kind == NodeKind::QueueOp)         ? IM_COL32(95, 60, 20, 255) :
-                        (n.kind == NodeKind::ArrayOp)         ? IM_COL32(35, 65, 95, 255) :
-                        (n.kind == NodeKind::MathOp)          ? IM_COL32(30, 95, 110, 255) :
-                        (n.kind == NodeKind::BranchIf)        ? IM_COL32(120, 65, 25, 255) :
-                        (n.kind == NodeKind::LoopWhile || n.kind == NodeKind::LoopDoWhile || n.kind == NodeKind::LoopFor) ? IM_COL32(75, 35, 95, 255) :
-                        IM_COL32(35, 42, 52, 255);
+        switch (shape) {
+            case FlowchartShape::Pill: {
+                float r = (pMax.y - pMin.y) * 0.5f;
+                drawList->AddRectFilled(pMin, pMax, theme.bgCol, r);
+                DrawNeonRect(drawList, pMin, pMax, borderCol, r, borderThick);
+                break;
+            }
+            case FlowchartShape::Diamond: {
+                ImVec2 mid((pMin.x + pMax.x) * 0.5f, (pMin.y + pMax.y) * 0.5f);
+                ImVec2 pts[4] = {
+                    ImVec2(mid.x, pMin.y),
+                    ImVec2(pMax.x, mid.y),
+                    ImVec2(mid.x, pMax.y),
+                    ImVec2(pMin.x, mid.y)
+                };
+                drawList->AddQuadFilled(pts[0], pts[1], pts[2], pts[3], theme.bgCol);
+                DrawNeonPolyline(drawList, pts, 4, borderCol, borderThick, true);
+                break;
+            }
+            case FlowchartShape::Parallelogram: {
+                float skew = 18.0f * g_flowZoomLevel;
+                ImVec2 pts[4] = {
+                    ImVec2(pMin.x + skew, pMin.y),
+                    ImVec2(pMax.x, pMin.y),
+                    ImVec2(pMax.x - skew, pMax.y),
+                    ImVec2(pMin.x, pMax.y)
+                };
+                drawList->AddQuadFilled(pts[0], pts[1], pts[2], pts[3], theme.bgCol);
+                DrawNeonPolyline(drawList, pts, 4, borderCol, borderThick, true);
+                break;
+            }
+            case FlowchartShape::Hexagon: {
+                float midY = (pMin.y + pMax.y) * 0.5f;
+                float inset = 20.0f * g_flowZoomLevel;
+                ImVec2 pts[6] = {
+                    ImVec2(pMin.x + inset, pMin.y),
+                    ImVec2(pMax.x - inset, pMin.y),
+                    ImVec2(pMax.x, midY),
+                    ImVec2(pMax.x - inset, pMax.y),
+                    ImVec2(pMin.x + inset, pMax.y),
+                    ImVec2(pMin.x, midY)
+                };
+                drawList->AddConvexPolyFilled(pts, 6, theme.bgCol);
+                DrawNeonPolyline(drawList, pts, 6, borderCol, borderThick, true);
+                break;
+            }
+            case FlowchartShape::Rectangle:
+            default: {
+                float r = 8.0f * g_flowZoomLevel;
+                drawList->AddRectFilled(pMin, pMax, theme.bgCol, r);
+                drawList->AddRectFilled(pMin, ImVec2(pMax.x, pMin.y + 24.0f * g_flowZoomLevel), theme.headCol, r, ImDrawFlags_RoundCornersTop);
+                DrawNeonRect(drawList, pMin, pMax, borderCol, r, borderThick);
+                break;
+            }
+        }
+    }
 
-        drawList->AddRectFilled(pMin, ImVec2(pMax.x, pMin.y + 26.0f * g_flowZoomLevel), headCol, 8.0f * g_flowZoomLevel, ImDrawFlags_RoundCornersTop);
-        drawList->AddText(ImVec2(pMin.x + 12 * g_flowZoomLevel, pMin.y + 5), IM_COL32(245, 250, 255, 255), n.title.c_str());
+    // ── ADIM 2: BEZIER KABLOLARI (LAZER NEON AKIS) ───────────────────────
+    // Not: Kablolar dugum zeminlerinin ustunde, ancak metinlerin altinda cizilir.
+    // Boylece dugumlerin arkasinda asla kaybolmaz ve metinleri kapatmaz!
+    int wireToDelete = -1;
+    bool isAltDown = ImGui::GetIO().KeyAlt;
 
-        // Pinleri Ciz ve Pin Uzerinde Olup Olmadigini (Hit-Test) Kontrol Et
+    for (const auto& w : pm.wires) {
+        FlowNode* fn = pm.GetNode(w.fromNode);
+        FlowNode* tn = pm.GetNode(w.toNode);
+        if (fn && tn && w.fromPin < (int)fn->pins.size() && w.toPin < (int)tn->pins.size()) {
+            ImVec2 p1(screenOrigin.x + g_flowPanOffset.x + (fn->x + fn->pins[w.fromPin].relX) * g_flowZoomLevel,
+                      screenOrigin.y + g_flowPanOffset.y + (fn->y + fn->pins[w.fromPin].relY) * g_flowZoomLevel);
+            ImVec2 p2(screenOrigin.x + g_flowPanOffset.x + (tn->x + tn->pins[w.toPin].relX) * g_flowZoomLevel,
+                      screenOrigin.y + g_flowPanOffset.y + (tn->y + tn->pins[w.toPin].relY) * g_flowZoomLevel);
+
+            float dx = fabsf(p2.x - p1.x) * 0.5f;
+            if (dx < 40.0f * g_flowZoomLevel) dx = 40.0f * g_flowZoomLevel;
+
+            bool isBottomPin = (fn->kind == NodeKind::BranchIf && w.fromPin == 2);
+            float dy = fabsf(p2.y - p1.y) * 0.5f;
+            if (dy < 40.0f * g_flowZoomLevel) dy = 40.0f * g_flowZoomLevel;
+
+            ImVec2 c1 = isBottomPin ? ImVec2(p1.x, p1.y + dy) : ImVec2(p1.x + dx, p1.y);
+            ImVec2 c2(p2.x - dx, p2.y);
+
+            ImVec2 midPt((p1.x + p2.x) * 0.5f, (p1.y + p2.y) * 0.5f);
+            float distToMid = hypotf(mousePos.x - midPt.x, mousePos.y - midPt.y);
+            bool wireHovered = (distToMid < 25.0f * g_flowZoomLevel);
+
+            if (wireHovered && isAltDown) {
+                drawList->AddBezierCubic(p1, c1, c2, p2, IM_COL32(255, 60, 60, 255), 4.5f);
+                drawList->AddCircleFilled(midPt, 7.0f, IM_COL32(255, 30, 30, 255));
+                drawList->AddText(ImVec2(midPt.x + 10, midPt.y - 10), IM_COL32(255, 100, 100, 255), "[Kabloyu Kes]");
+                if (ImGui::IsMouseClicked(0)) {
+                    wireToDelete = w.id;
+                }
+            } else {
+                ImU32 wireGlow = isBottomPin ? IM_COL32(240, 90, 90, 60) : IM_COL32(0, 180, 240, 65);
+                ImU32 wireCore = isBottomPin ? IM_COL32(255, 120, 90, 255) : IM_COL32(0, 230, 255, 255);
+                drawList->AddBezierCubic(p1, c1, c2, p2, wireGlow, 5.5f);
+                drawList->AddBezierCubic(p1, c1, c2, p2, wireCore, 2.2f);
+            }
+        }
+    }
+
+    if (wireToDelete > 0) {
+        pm.DisconnectWire(wireToDelete);
+        pm.statusMessage = "Kablo baglantisi koparildi (Alt + Tik).";
+    }
+
+    // ── ADIM 3: DUGUM ICI CANLI METIN VE IFADELER ─────────────────────────
+    for (auto& n : pm.nodes) {
+        ImVec2 pMin(screenOrigin.x + g_flowPanOffset.x + n.x * g_flowZoomLevel,
+                    screenOrigin.y + g_flowPanOffset.y + n.y * g_flowZoomLevel);
+        ImVec2 pMax(pMin.x + n.width * g_flowZoomLevel,
+                    pMin.y + n.height * g_flowZoomLevel);
+        ImVec2 pCenter((pMin.x + pMax.x) * 0.5f, (pMin.y + pMax.y) * 0.5f);
+
+        NodeColorTheme theme = GetNodeTheme(n.kind);
+        FlowchartShape shape = GetFlowchartShape(n.kind);
+        std::string liveExpr = FormatNodeLiveContent(n);
+        if (liveExpr.length() > 32) liveExpr = liveExpr.substr(0, 29) + "...";
+
+        // Rozet / Kategori ve Canlı İfade Çizimi
+        if (shape == FlowchartShape::Diamond) {
+            // BranchIf: Merkezde koşul, sağda Evet, altta Hayır
+            ImVec2 szTitle = ImGui::CalcTextSize(theme.categoryBadge);
+            drawList->AddText(ImVec2(pCenter.x - szTitle.x * 0.5f, pMin.y + 12.0f * g_flowZoomLevel), theme.neonCol, theme.categoryBadge);
+
+            ImVec2 szExpr = ImGui::CalcTextSize(liveExpr.c_str());
+            drawList->AddText(ImVec2(pCenter.x - szExpr.x * 0.5f, pCenter.y - szExpr.y * 0.5f), IM_COL32(255, 255, 255, 255), liveExpr.c_str());
+
+            // Dal İpuçları
+            drawList->AddText(ImVec2(pMax.x - 48.0f * g_flowZoomLevel, pCenter.y - 18.0f), IM_COL32(46, 204, 113, 255), "Evet");
+            drawList->AddText(ImVec2(pCenter.x + 8.0f, pMax.y - 24.0f * g_flowZoomLevel), IM_COL32(231, 76, 60, 255), "Hayir");
+        } else if (shape == FlowchartShape::Pill) {
+            // Start / End
+            ImVec2 szTitle = ImGui::CalcTextSize(n.title.c_str());
+            drawList->AddText(ImVec2(pCenter.x - szTitle.x * 0.5f, pCenter.y - 14.0f), IM_COL32(255, 255, 255, 255), n.title.c_str());
+            ImVec2 szExpr = ImGui::CalcTextSize(liveExpr.c_str());
+            drawList->AddText(ImVec2(pCenter.x - szExpr.x * 0.5f, pCenter.y + 2.0f), theme.neonCol, liveExpr.c_str());
+        } else {
+            // Parallelogram, Hexagon, Rectangle
+            float titleY = pMin.y + 5.0f * g_flowZoomLevel;
+            float textIndent = (shape == FlowchartShape::Parallelogram) ? (22.0f * g_flowZoomLevel) : (14.0f * g_flowZoomLevel);
+
+            // Başlık / Kategori
+            drawList->AddText(ImVec2(pMin.x + textIndent, titleY), theme.neonCol, theme.categoryBadge);
+
+            // Canlı Değer / İşlem Gövdesi
+            float bodyY = pCenter.y - 3.0f * g_flowZoomLevel;
+            drawList->AddText(ImVec2(pMin.x + textIndent, bodyY), IM_COL32(250, 252, 255, 255), liveExpr.c_str());
+        }
+
+        // Canlı Uyarı Rozeti
+        if (n.hasWarning) {
+            std::string warnStr = "[!] " + n.warningText;
+            drawList->AddText(ImVec2(pMin.x + 14.0f * g_flowZoomLevel, pMax.y - 16.0f * g_flowZoomLevel), warnNeonCol, warnStr.c_str());
+        }
+    }
+
+    // ── ADIM 4: PINLER VE ETKİLEŞİM ──────────────────────────────────────
+    for (auto& n : pm.nodes) {
+        ImVec2 pMin(screenOrigin.x + g_flowPanOffset.x + n.x * g_flowZoomLevel,
+                    screenOrigin.y + g_flowPanOffset.y + n.y * g_flowZoomLevel);
+        ImVec2 pMax(pMin.x + n.width * g_flowZoomLevel,
+                    pMin.y + n.height * g_flowZoomLevel);
+
+        bool isNodeHovered = (mousePos.x >= pMin.x && mousePos.x <= pMax.x && mousePos.y >= pMin.y && mousePos.y <= pMax.y);
+
         for (size_t pIdx = 0; pIdx < n.pins.size(); pIdx++) {
             const auto& pin = n.pins[pIdx];
             ImVec2 pinPos(pMin.x + pin.relX * g_flowZoomLevel, pMin.y + pin.relY * g_flowZoomLevel);
@@ -331,6 +713,8 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
             }
 
             ImU32 pCol = (pin.type == PinType::ExecIn || pin.type == PinType::ExecOut) ? IM_COL32(0, 200, 232, 255) : IM_COL32(63, 185, 80, 255);
+            if (n.kind == NodeKind::BranchIf && pIdx == 1) pCol = IM_COL32(46, 204, 113, 255); // True
+            if (n.kind == NodeKind::BranchIf && pIdx == 2) pCol = IM_COL32(231, 76, 60, 255);  // False
             if (isPinHovered) pCol = IM_COL32(255, 255, 100, 255);
 
             if (pin.shape == PinShape::Diamond) {
@@ -340,7 +724,7 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
                     ImVec2(pinPos.x + s, pinPos.y),
                     ImVec2(pinPos.x, pinPos.y + s),
                     ImVec2(pinPos.x - s, pinPos.y),
-                    isPinHovered ? IM_COL32(255, 255, 100, 255) : IM_COL32(255, 165, 0, 255)
+                    pCol
                 );
             } else if (pin.shape == PinShape::Triangle) {
                 float s = 6.0f * g_flowZoomLevel;
@@ -354,14 +738,16 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
                 drawList->AddCircleFilled(pinPos, 6.0f * g_flowZoomLevel, pCol);
             }
 
-            drawList->AddCircle(pinPos, 7.0f * g_flowZoomLevel, IM_COL32(255, 255, 255, isPinHovered ? 255 : 120));
+            drawList->AddCircle(pinPos, 7.5f * g_flowZoomLevel, IM_COL32(255, 255, 255, isPinHovered ? 255 : 140));
 
-            // Pin Ismi (Temiz hizalanmis)
-            if (pin.type == PinType::ExecIn) {
-                drawList->AddText(ImVec2(pinPos.x + 12 * g_flowZoomLevel, pinPos.y - 8), IM_COL32(180, 190, 205, 255), pin.name.c_str());
-            } else {
-                ImVec2 textSize = ImGui::CalcTextSize(pin.name.c_str());
-                drawList->AddText(ImVec2(pinPos.x - textSize.x - 12 * g_flowZoomLevel, pinPos.y - 8), IM_COL32(180, 190, 205, 255), pin.name.c_str());
+            // Pin İsmi (Diamond hariç)
+            if (n.kind != NodeKind::BranchIf) {
+                if (pin.type == PinType::ExecIn) {
+                    drawList->AddText(ImVec2(pinPos.x + 12 * g_flowZoomLevel, pinPos.y - 8), IM_COL32(180, 190, 205, 255), pin.name.c_str());
+                } else {
+                    ImVec2 textSize = ImGui::CalcTextSize(pin.name.c_str());
+                    drawList->AddText(ImVec2(pinPos.x - textSize.x - 12 * g_flowZoomLevel, pinPos.y - 8), IM_COL32(180, 190, 205, 255), pin.name.c_str());
+                }
             }
         }
 
