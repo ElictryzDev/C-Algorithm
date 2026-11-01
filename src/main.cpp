@@ -21,6 +21,9 @@ void CleanupRenderTarget();
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
+    // Proje ve geçici derleme klasörünü güvenceye al (Taşınabilir Tek EXE Desteği)
+    CreateDirectoryA("projects", NULL);
+
     WNDCLASSEXW wc = { sizeof(wc), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(nullptr), nullptr, nullptr, nullptr, nullptr, L"CAlgorithmClass", nullptr };
     RegisterClassExW(&wc);
 

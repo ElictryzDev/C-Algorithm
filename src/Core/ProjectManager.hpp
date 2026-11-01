@@ -57,6 +57,7 @@ public:
     // Danisman Analizi (Birlikte yazdigimiz kurallar)
     void RunDiagnostics();
 
-    // C++ Kod Ureticisi
+    // Kod Ureticileri (C++17 ve Saf C99/C11)
     std::string GenerateCppCode();
+    std::string GenerateCCode();
 };

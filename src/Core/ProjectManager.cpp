@@ -1,4 +1,5 @@
 #include "ProjectManager.hpp"
+#include <map>
 #include <queue>
 #include <filesystem>
 #include <functional>
@@ -975,6 +976,443 @@ std::string ProjectManager::GenerateCppCode() {
     }
 
     ss << "    std::cout << \"=== PROGRAM TAMAMLANDI ===\" << std::endl;\n";
+    ss << "    return 0;\n";
+    ss << "}\n";
+
+    return ss.str();
+}
+
+// ── Saf ve Standart ANSI C (C99/C11) Kodu Üretici ──────────────────────────
+static const char* TypeKindToCString(TypeKind t) {
+    switch (t) {
+        case TypeKind::Int32:  return "int";
+        case TypeKind::Int64:  return "long long";
+        case TypeKind::Float:  return "float";
+        case TypeKind::Double: return "double";
+        case TypeKind::Bool:   return "bool";
+        case TypeKind::UInt8:  return "uint8_t";
+        case TypeKind::UInt16: return "uint16_t";
+        case TypeKind::UInt32: return "uint32_t";
+        case TypeKind::UInt64: return "uint64_t";
+        case TypeKind::String: return "char";
+    }
+    return "int";
+}
+
+static const char* TypeKindToCFormat(TypeKind t) {
+    switch (t) {
+        case TypeKind::Int32:  return "%d";
+        case TypeKind::Int64:  return "%lld";
+        case TypeKind::Float:  return "%f";
+        case TypeKind::Double: return "%lf";
+        case TypeKind::Bool:   return "%d";
+        case TypeKind::UInt8:  return "%u";
+        case TypeKind::UInt16: return "%u";
+        case TypeKind::UInt32: return "%u";
+        case TypeKind::UInt64: return "%llu";
+        case TypeKind::String: return "%s";
+    }
+    return "%d";
+}
+
+std::string ProjectManager::GenerateCCode() {
+    std::stringstream ss;
+    ss << "/* ======================================================== */\n";
+    ss << "/* C-ALGORITHM ENGINE - SAF ANSI C (C99/C11) KODU           */\n";
+    ss << "/* Proje: " << projectName << "\n";
+    ss << "/* Açıklama: C++ ek yükleri (iostream, vtable, RTTI)       */\n";
+    ss << "/*           olmadan, saf libc ve stdio ile en hafif C kodu */\n";
+    ss << "/* ======================================================== */\n\n";
+
+    ss << "#define _CRT_SECURE_NO_WARNINGS\n";
+    ss << "#include <stdio.h>\n";
+    ss << "#include <stdlib.h>\n";
+    ss << "#include <stdbool.h>\n";
+    ss << "#include <stdint.h>\n";
+    ss << "#include <string.h>\n";
+    ss << "#include <math.h>\n";
+    ss << "#include <windows.h>\n\n";
+
+    // ── KULLANICI TANIMLI STRUCT'LAR (C99 TYPEDEF STRUCT) ─────
+    bool hasStructs = false;
+    for (const auto& n : nodes) {
+        if (n.kind == NodeKind::StructDef) {
+            if (!hasStructs) {
+                ss << "/* ── KULLANICI TANIMLI VERİ YAPILARI (ANSI C STRUCT) ── */\n";
+                hasStructs = true;
+            }
+            ss << "typedef struct {\n";
+            for (const auto& m : n.structMembers) {
+                if (m.type == TypeKind::String) {
+                    ss << "    char " << m.name << "[256];\n";
+                } else {
+                    ss << "    " << TypeKindToCString(m.type) << " " << m.name << ";\n";
+                }
+            }
+            ss << "} " << n.structName << ";\n\n";
+
+            if (n.hasDestructor) {
+                ss << "/* RAII Yıkıcı Metot Muadili: C Dilinde Bellek Temizleme */\n";
+                ss << "void " << n.structName << "_destroy(" << n.structName << "* self) {\n";
+                ss << "    printf(\"[DESTRUCTOR ~" << n.structName << "] " << n.destructorMsg << "\\n\");\n";
+                ss << "}\n\n";
+            }
+        }
+    }
+
+    // ── EĞİTİM VERİ YAPISI DESTEKLERİ (C DİLİNDE STACK / QUEUE MUADİLLERİ) ──
+    bool hasStack = false, hasQueue = false;
+    for (const auto& n : nodes) {
+        if (n.kind == NodeKind::StackOp) hasStack = true;
+        if (n.kind == NodeKind::QueueOp) hasQueue = true;
+    }
+
+    if (hasStack) {
+        ss << "/* ── C DİLİ EĞİTİM AMAÇLI YIĞIN (STACK - LIFO) YAPISI ── */\n";
+        ss << "typedef struct {\n";
+        ss << "    int data[256];\n";
+        ss << "    int top;\n";
+        ss << "} C_Stack;\n";
+        ss << "void stack_init(C_Stack* s) { s->top = -1; }\n";
+        ss << "void stack_push(C_Stack* s, int val) { if (s->top < 255) s->data[++(s->top)] = val; }\n";
+        ss << "int stack_pop(C_Stack* s) { return (s->top >= 0) ? s->data[(s->top)--] : 0; }\n";
+        ss << "int stack_peek(C_Stack* s) { return (s->top >= 0) ? s->data[s->top] : 0; }\n\n";
+    }
+
+    if (hasQueue) {
+        ss << "/* ── C DİLİ EĞİTİM AMAÇLI KUYRUK (QUEUE - FIFO) YAPISI ── */\n";
+        ss << "typedef struct {\n";
+        ss << "    int data[256];\n";
+        ss << "    int head, tail, count;\n";
+        ss << "} C_Queue;\n";
+        ss << "void queue_init(C_Queue* q) { q->head = 0; q->tail = 0; q->count = 0; }\n";
+        ss << "void queue_push(C_Queue* q, int val) { if (q->count < 256) { q->data[q->tail] = val; q->tail = (q->tail + 1) % 256; q->count++; } }\n";
+        ss << "int queue_pop(C_Queue* q) { int v = 0; if (q->count > 0) { v = q->data[q->head]; q->head = (q->head + 1) % 256; q->count--; } return v; }\n";
+        ss << "int queue_front(C_Queue* q) { return (q->count > 0) ? q->data[q->head] : 0; }\n\n";
+    }
+
+    ss << "int main(void) {\n";
+    ss << "    /* Windows Konsolunu UTF-8 Moduna Al (Türkçe Karakter Desteği) */\n";
+    ss << "    SetConsoleOutputCP(65001);\n";
+    ss << "    SetConsoleCP(65001);\n\n";
+    ss << "    printf(\"=== " << projectName << " (C99 MODU) CALISIYOR ===\\n\\n\");\n\n";
+
+    // Helper lambda: verilen pinden çıkan düğümü bul
+    auto getTargetNode = [&](int fromNodeId, int pinIndex) -> int {
+        for (const auto& w : wires) {
+            if (w.fromNode == fromNodeId && w.fromPin == pinIndex) return w.toNode;
+            if (w.toNode == fromNodeId && w.toPin == pinIndex) return w.fromNode;
+        }
+        return -1;
+    };
+
+    // Değişken tiplerini önceden haritalayalım (printf/scanf format belirteçleri için)
+    std::map<std::string, TypeKind> varTypeMap;
+    for (const auto& n : nodes) {
+        if (n.kind == NodeKind::VariableDeclare && !n.targetVar.empty()) {
+            varTypeMap[n.targetVar] = n.varType;
+        }
+    }
+
+    std::set<int> visited;
+    std::set<std::string> declaredDataStructures;
+    std::function<void(int, int)> generateCChain = [&](int nodeId, int indent) {
+        int curr = nodeId;
+        while (curr > 0) {
+            if (visited.count(curr)) break;
+            visited.insert(curr);
+
+            FlowNode* n = GetNode(curr);
+            if (!n) break;
+
+            std::string tabs(indent * 4, ' ');
+
+            if (n->kind == NodeKind::StructDef) {
+                ss << tabs << "/* Struct Tanımı Bildirildi: " << n->structName << " */\n";
+                ss << tabs << "printf(\"[STRUCT] " << n->structName << " veri yapısı hazır.\\n\");\n\n";
+                curr = getTargetNode(curr, 1);
+            }
+            else if (n->kind == NodeKind::VariableDeclare) {
+                std::string constPrefix = n->isConst ? "const " : "";
+                std::string resolvedType = n->isCustomType ? n->customTypeName : TypeKindToCString(n->varType);
+
+                if (n->isCustomType) {
+                    ss << tabs << "/* Özel Struct Değişkeni (" << resolvedType << ") */\n";
+                    ss << tabs << constPrefix << resolvedType << " " << n->targetVar << ";\n";
+                    ss << tabs << "printf(\"[STRUCT INSTANCE] " << n->targetVar << " bellekte oluşturuldu.\\n\");\n\n";
+                } else if (n->varType == TypeKind::String) {
+                    ss << tabs << "/* Karakter Dizisi (C String) */\n";
+                    if (!n->expr.empty()) {
+                        ss << tabs << constPrefix << "char " << n->targetVar << "[256] = " << n->expr << ";\n";
+                        ss << tabs << "printf(\"[LOG] " << n->targetVar << " = %s\\n\", " << n->targetVar << ");\n\n";
+                    } else {
+                        ss << tabs << constPrefix << "char " << n->targetVar << "[256] = \"\";\n\n";
+                    }
+                } else {
+                    ss << tabs << "/* Değişken Tanımlama (" << n->targetVar << ") */\n";
+                    const char* fmt = TypeKindToCFormat(n->varType);
+                    if (!n->expr.empty()) {
+                        ss << tabs << constPrefix << resolvedType << " " << n->targetVar << " = " << n->expr << ";\n";
+                        ss << tabs << "printf(\"[LOG] " << n->targetVar << " = " << fmt << "\\n\", " << n->targetVar << ");\n\n";
+                    } else {
+                        ss << tabs << constPrefix << resolvedType << " " << n->targetVar << ";\n\n";
+                    }
+                    for (const auto& extra : n->multiAssignments) {
+                        const char* eFmt = TypeKindToCFormat(extra.varType);
+                        if (!extra.valueExpr.empty()) {
+                            ss << tabs << constPrefix << TypeKindToCString(extra.varType) << " " << extra.varName << " = " << extra.valueExpr << ";\n";
+                        } else {
+                            ss << tabs << constPrefix << TypeKindToCString(extra.varType) << " " << extra.varName << ";\n";
+                        }
+                    }
+                }
+                curr = getTargetNode(curr, 1);
+            }
+            else if (n->kind == NodeKind::ArrayOp) {
+                if (!declaredDataStructures.count(n->dsName)) {
+                    ss << tabs << "/* Sabit Boyutlu ANSI C Dizisi */\n";
+                    ss << tabs << "int " << n->dsName << "[" << n->arraySize << "] = {0};\n";
+                    declaredDataStructures.insert(n->dsName);
+                }
+                ss << tabs << n->dsName << "[" << n->arrayIndex << "] = " << n->dsOpArg << ";\n";
+                ss << tabs << "printf(\"[ARRAY] " << n->dsName << "[%d] = %d\\n\", " << n->arrayIndex << ", " << n->dsName << "[" << n->arrayIndex << "]);\n\n";
+                curr = getTargetNode(curr, 1);
+            }
+            else if (n->kind == NodeKind::StackOp) {
+                if (!declaredDataStructures.count(n->dsName)) {
+                    ss << tabs << "/* C Dili Stack Örneği */\n";
+                    ss << tabs << "C_Stack " << n->dsName << ";\n";
+                    ss << tabs << "stack_init(&" << n->dsName << ");\n";
+                    declaredDataStructures.insert(n->dsName);
+                }
+                if (n->dsOpType == "push") {
+                    ss << tabs << "stack_push(&" << n->dsName << ", " << n->dsOpArg << ");\n";
+                    ss << tabs << "printf(\"[STACK] push(" << n->dsOpArg << ") -> Tepe Eleman: %d\\n\", stack_peek(&" << n->dsName << "));\n\n";
+                } else if (n->dsOpType == "pop") {
+                    ss << tabs << "printf(\"[STACK] pop() -> Çıkarılan: %d\\n\", stack_pop(&" << n->dsName << "));\n\n";
+                } else if (n->dsOpType == "top") {
+                    ss << tabs << "printf(\"[STACK] Tepe Eleman: %d\\n\", stack_peek(&" << n->dsName << "));\n\n";
+                }
+                curr = getTargetNode(curr, 1);
+            }
+            else if (n->kind == NodeKind::QueueOp) {
+                if (!declaredDataStructures.count(n->dsName)) {
+                    ss << tabs << "/* C Dili Kuyruk Örneği */\n";
+                    ss << tabs << "C_Queue " << n->dsName << ";\n";
+                    ss << tabs << "queue_init(&" << n->dsName << ");\n";
+                    declaredDataStructures.insert(n->dsName);
+                }
+                if (n->dsOpType == "push") {
+                    ss << tabs << "queue_push(&" << n->dsName << ", " << n->dsOpArg << ");\n";
+                    ss << tabs << "printf(\"[QUEUE] push(" << n->dsOpArg << ") -> Kuyruk Başı: %d\\n\", queue_front(&" << n->dsName << "));\n\n";
+                } else if (n->dsOpType == "pop") {
+                    ss << tabs << "printf(\"[QUEUE] pop() -> Çıkarılan: %d\\n\", queue_pop(&" << n->dsName << "));\n\n";
+                } else if (n->dsOpType == "front") {
+                    ss << tabs << "printf(\"[QUEUE] Kuyruk Başı: %d\\n\", queue_front(&" << n->dsName << "));\n\n";
+                }
+                curr = getTargetNode(curr, 1);
+            }
+            else if (n->kind == NodeKind::VectorOp || n->kind == NodeKind::ListOp) {
+                // Saf C'de STL vector ve list olmadığından pedagojik açıklama ve dinamik dizi muadili:
+                ss << tabs << "/* Not: C standardında C++ STL şablonları yoktur. Dinamik dizi için malloc/free kullanılır. */\n";
+                ss << tabs << "printf(\"[" << (n->kind == NodeKind::VectorOp ? "VECTOR" : "LIST") << " C-MUADILI] İşlem simüle edildi.\\n\");\n\n";
+                curr = getTargetNode(curr, 1);
+            }
+            else if (n->kind == NodeKind::Assign) {
+                ss << tabs << "/* Değer Atama */\n";
+                ss << tabs << n->targetVar << " = " << n->expr << ";\n";
+                for (const auto& extra : n->multiAssignments) {
+                    ss << tabs << extra.varName << " = " << extra.valueExpr << ";\n";
+                }
+                ss << "\n";
+                curr = getTargetNode(curr, 1);
+            }
+            else if (n->kind == NodeKind::Print) {
+                ss << tabs << "/* Ekrana Yazdırma (printf) */\n";
+                if (n->printMode == 1) {
+                    std::string varName = !n->targetVar.empty() ? n->targetVar : "x";
+                    TypeKind tk = varTypeMap.count(varName) ? varTypeMap[varName] : TypeKind::Int32;
+                    const char* fmt = TypeKindToCFormat(tk);
+                    ss << tabs << "printf(\"" << fmt << "\\n\", " << varName << ");\n\n";
+                } else if (n->printMode == 2) {
+                    std::string varName = !n->targetVar.empty() ? n->targetVar : "x";
+                    TypeKind tk = varTypeMap.count(varName) ? varTypeMap[varName] : TypeKind::Int32;
+                    const char* fmt = TypeKindToCFormat(tk);
+                    ss << tabs << "printf(\"" << n->ioText << " " << fmt << "\\n\", " << varName << ");\n\n";
+                } else {
+                    ss << tabs << "printf(\"" << n->ioText << "\\n\");\n\n";
+                }
+                curr = getTargetNode(curr, 1);
+            }
+            else if (n->kind == NodeKind::Input) {
+                std::string inVar = !n->targetVar.empty() ? n->targetVar : "inputVal";
+                TypeKind tk = varTypeMap.count(inVar) ? varTypeMap[inVar] : TypeKind::Int32;
+                ss << tabs << "/* Klavyeden Girdi Alma (scanf) */\n";
+                if (tk == TypeKind::String) {
+                    ss << tabs << "if (scanf(\"%255s\", " << inVar << ") != 1) { while (getchar() != '\\n'); }\n\n";
+                } else {
+                    const char* fmt = TypeKindToCFormat(tk);
+                    ss << tabs << "if (scanf(\"" << fmt << "\", &" << inVar << ") != 1) {\n";
+                    ss << tabs << "    /* C Dili Akış Kalkanı (Tampon Belleği Temizle) */\n";
+                    ss << tabs << "    int _c; while ((_c = getchar()) != '\\n' && _c != EOF);\n";
+                    ss << tabs << "}\n\n";
+                }
+                curr = getTargetNode(curr, 1);
+            }
+            else if (n->kind == NodeKind::MathOp) {
+                std::string target = !n->mathTarget.empty() ? n->mathTarget : "sonuc";
+                std::string left = !n->mathLeft.empty() ? n->mathLeft : "0";
+                std::string right = !n->mathRight.empty() ? n->mathRight : "0";
+                std::string op = !n->mathOp.empty() ? n->mathOp : "+";
+
+                ss << tabs << "/* Matematiksel Hesaplama: " << target << " */\n";
+                if (op == "sqrt") {
+                    ss << tabs << target << " = sqrt(" << left << ");\n";
+                    ss << tabs << "printf(\"[ISLEM] " << target << " = sqrt(%f) -> %f\\n\", (double)" << left << ", (double)" << target << ");\n\n";
+                } else if (op == "pow") {
+                    ss << tabs << target << " = pow(" << left << ", " << right << ");\n";
+                    ss << tabs << "printf(\"[ISLEM] " << target << " = pow(%f, %f) -> %f\\n\", (double)" << left << ", (double)" << right << ", (double)" << target << ");\n\n";
+                } else if (op == "fact") {
+                    ss << tabs << target << " = 1;\n";
+                    ss << tabs << "for (int i = 1; i <= (int)" << left << "; ++i) { " << target << " *= i; }\n";
+                    ss << tabs << "printf(\"[ISLEM] " << target << " = %d! (Faktöriyel) -> %d\\n\", (int)" << left << ", (int)" << target << ");\n\n";
+                } else {
+                    ss << tabs << target << " = " << left << " " << op << " " << right << ";\n";
+                    ss << tabs << "printf(\"[ISLEM] " << target << " = %d " << op << " %d -> %d\\n\", (int)" << left << ", (int)" << right << ", (int)" << target << ");\n\n";
+                }
+                curr = getTargetNode(curr, 1);
+            }
+            else if (n->kind == NodeKind::BranchIf) {
+                ss << tabs << "/* Koşul / Karar Bloğu */\n";
+                ss << tabs << "if (" << n->conditionExpr << ") {\n";
+                int trueNode = getTargetNode(curr, 1);
+                if (trueNode > 0) generateCChain(trueNode, indent + 1);
+                ss << tabs << "} else {\n";
+                int falseNode = getTargetNode(curr, 2);
+                if (falseNode > 0) generateCChain(falseNode, indent + 1);
+                ss << tabs << "}\n\n";
+                break;
+            }
+            else if (n->kind == NodeKind::LoopWhile) {
+                ss << tabs << "/* While Döngüsü */\n";
+                ss << tabs << "while (" << n->conditionExpr << ") {\n";
+                int bodyNode = getTargetNode(curr, 1);
+                if (bodyNode > 0) generateCChain(bodyNode, indent + 1);
+                for (const auto& stmt : n->loopBodyStmts) {
+                    if (!stmt.empty()) ss << tabs << "    " << stmt << ";\n";
+                }
+                ss << tabs << "}\n\n";
+
+                int nextNode = -1;
+                int trace = bodyNode;
+                std::set<int> visitedTrace;
+                while (trace > 0 && visitedTrace.count(trace) == 0) {
+                    visitedTrace.insert(trace);
+                    FlowNode* tn = GetNode(trace);
+                    if (tn && tn->kind == NodeKind::LoopEnd) {
+                        nextNode = getTargetNode(trace, 1);
+                        break;
+                    }
+                    trace = getTargetNode(trace, 1);
+                }
+                if (nextNode <= 0) nextNode = getTargetNode(curr, 2);
+                curr = nextNode;
+            }
+            else if (n->kind == NodeKind::LoopDoWhile) {
+                ss << tabs << "/* Do-While Döngüsü */\n";
+                ss << tabs << "do {\n";
+                int bodyNode = getTargetNode(curr, 1);
+                if (bodyNode > 0) generateCChain(bodyNode, indent + 1);
+                for (const auto& stmt : n->loopBodyStmts) {
+                    if (!stmt.empty()) ss << tabs << "    " << stmt << ";\n";
+                }
+                ss << tabs << "} while (" << n->conditionExpr << ");\n\n";
+
+                int nextNode = -1;
+                int trace = bodyNode;
+                std::set<int> visitedTrace;
+                while (trace > 0 && visitedTrace.count(trace) == 0) {
+                    visitedTrace.insert(trace);
+                    FlowNode* tn = GetNode(trace);
+                    if (tn && tn->kind == NodeKind::LoopEnd) {
+                        nextNode = getTargetNode(trace, 1);
+                        break;
+                    }
+                    trace = getTargetNode(trace, 1);
+                }
+                if (nextNode <= 0) nextNode = getTargetNode(curr, 2);
+                curr = nextNode;
+            }
+            else if (n->kind == NodeKind::LoopFor) {
+                ss << tabs << "/* For Döngüsü (C99) */\n";
+                ss << tabs << "for (" << n->loopInit << "; " << n->conditionExpr << "; " << n->loopStep << ") {\n";
+                int bodyNode = getTargetNode(curr, 1);
+                if (bodyNode > 0) generateCChain(bodyNode, indent + 1);
+                ss << tabs << "}\n\n";
+
+                int nextNode = -1;
+                int trace = bodyNode;
+                std::set<int> visitedTrace;
+                while (trace > 0 && visitedTrace.count(trace) == 0) {
+                    visitedTrace.insert(trace);
+                    FlowNode* tn = GetNode(trace);
+                    if (tn && tn->kind == NodeKind::LoopEnd) {
+                        nextNode = getTargetNode(trace, 1);
+                        break;
+                    }
+                    trace = getTargetNode(trace, 1);
+                }
+                if (nextNode <= 0) nextNode = getTargetNode(curr, 2);
+                curr = nextNode;
+            }
+            else if (n->kind == NodeKind::LoopEnd) {
+                break;
+            }
+            else if (n->kind == NodeKind::SwitchCase) {
+                ss << tabs << "/* Switch-Case Çoklu Karar Yapısı */\n";
+                ss << tabs << "switch (" << n->switchVar << ") {\n";
+                ss << tabs << "    case " << (n->caseValues.size() > 0 ? n->caseValues[0] : "1") << ": {\n";
+                int case1Node = getTargetNode(curr, 1);
+                if (case1Node > 0) generateCChain(case1Node, indent + 2);
+                ss << tabs << "        break;\n";
+                ss << tabs << "    }\n";
+
+                ss << tabs << "    case " << (n->caseValues.size() > 1 ? n->caseValues[1] : "2") << ": {\n";
+                int case2Node = getTargetNode(curr, 2);
+                if (case2Node > 0) generateCChain(case2Node, indent + 2);
+                ss << tabs << "        break;\n";
+                ss << tabs << "    }\n";
+
+                ss << tabs << "    default: {\n";
+                int defNode = getTargetNode(curr, 3);
+                if (defNode > 0) generateCChain(defNode, indent + 2);
+                ss << tabs << "        break;\n";
+                ss << tabs << "    }\n";
+                ss << tabs << "}\n\n";
+                curr = getTargetNode(curr, 4);
+            }
+            else if (n->kind == NodeKind::End) {
+                break;
+            }
+            else {
+                curr = getTargetNode(curr, 1);
+            }
+        }
+    };
+
+    int startNodeId = -1;
+    for (const auto& n : nodes) {
+        if (n.kind == NodeKind::Start) { startNodeId = n.id; break; }
+    }
+
+    if (startNodeId > 0) {
+        int startOutNode = getTargetNode(startNodeId, 0);
+        if (startOutNode > 0) {
+            generateCChain(startOutNode, 1);
+        }
+    }
+
+    ss << "    printf(\"=== C PROGRAMI BASARIYLA TAMAMLANDI ===\\n\");\n";
     ss << "    return 0;\n";
     ss << "}\n";
 

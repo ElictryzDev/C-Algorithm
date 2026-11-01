@@ -1230,18 +1230,48 @@ static std::string RunCommandCapture(const std::string& cmd, bool& outOk) {
 }
 
 void RenderCodegenWorkspace(ProjectManager& pm) {
-    std::string code = pm.GenerateCppCode();
+    static int selectedLang = 0; // 0: C++17, 1: ANSI C (C99)
     bool isEn = (pm.currentLanguage == AppLanguage::English);
+
+    std::string cppCode = pm.GenerateCppCode();
+    std::string cCode = pm.GenerateCCode();
+    std::string currentCode = (selectedLang == 0) ? cppCode : cCode;
 
     // ── Ust arac cubugu ───────────────────────────────────────────────────
     ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.06f, 0.07f, 0.10f, 1.0f));
     ImGui::BeginChild("CodegenBar", ImVec2(0, 46), true);
     ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 4);
 
+    // Dil Seçim Butonları (Modern C++17 vs Saf ANSI C)
+    if (selectedLang == 0) {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.05f, 0.65f, 0.56f, 1.0f));
+    } else {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.18f, 0.10f, 0.28f, 1.0f));
+    }
+    if (ImGui::Button("⚡ Modern C++ (C++17)", ImVec2(165, 30))) {
+        selectedLang = 0;
+    }
+    ImGui::PopStyleColor();
+
+    ImGui::SameLine();
+    if (selectedLang == 1) {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.05f, 0.65f, 0.56f, 1.0f));
+    } else {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.18f, 0.10f, 0.28f, 1.0f));
+    }
+    if (ImGui::Button("☕ Standart ANSI C (C99)", ImVec2(175, 30))) {
+        selectedLang = 1;
+    }
+    ImGui::PopStyleColor();
+
+    ImGui::SameLine(0, 15);
+
     // Kopyala dugmesi
-    if (ImGui::Button(isEn ? "Copy" : "Kopyala", ImVec2(72, 30))) {
-        ImGui::SetClipboardText(code.c_str());
-        pm.statusMessage = isEn ? "C++ code copied!" : "C++ Kodu kopyalandi!";
+    if (ImGui::Button(isEn ? "Copy Code" : "Kodu Kopyala", ImVec2(95, 30))) {
+        ImGui::SetClipboardText(currentCode.c_str());
+        pm.statusMessage = (selectedLang == 0) 
+            ? (isEn ? "C++ code copied!" : "C++ Kodu panoya kopyalandı!")
+            : (isEn ? "C code copied!" : "C Kodu panoya kopyalandı!");
     }
     ImGui::SameLine();
 
@@ -1252,7 +1282,7 @@ void RenderCodegenWorkspace(ProjectManager& pm) {
         ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(0.05f, 0.38f, 0.12f, 1.0f));
         bool startBuild = ImGui::Button(
             isEn ? "Build & Run (In-App)" : "Derle & Calistir (Dahili)",
-            ImVec2(215, 30));
+            ImVec2(190, 30));
         ImGui::PopStyleColor(3);
 
         if (startBuild) {
@@ -1267,23 +1297,23 @@ void RenderCodegenWorkspace(ProjectManager& pm) {
                 g_lastBuildOk  = false;
                 g_showGuide    = false;
 
-                // 1. Gecici .cpp dosyasini kaydet
-                snprintf(g_tempCppPath, MAX_PATH, "%s\\_build_temp.cpp", PROJECTS_DIR);
+                // 1. Gecici kaynak dosyasini kaydet (.cpp veya .c)
+                const char* srcExt = (selectedLang == 0) ? ".cpp" : ".c";
+                snprintf(g_tempCppPath, MAX_PATH, "%s\\_build_temp%s", PROJECTS_DIR, srcExt);
                 snprintf(g_tempExePath, MAX_PATH, "%s\\_build_temp.exe", PROJECTS_DIR);
 
                 FILE* fout = nullptr;
                 fopen_s(&fout, g_tempCppPath, "w");
                 if (fout) {
-                    fwrite(code.c_str(), 1, code.size(), fout);
+                    fwrite(currentCode.c_str(), 1, currentCode.size(), fout);
                     fclose(fout);
                 } else {
-                    g_buildOutput  = "[HATA] Gecici .cpp dosyasi olusturulamadi!\n";
+                    g_buildOutput  = "[HATA] Gecici kaynak dosyasi olusturulamadi!\n";
                     g_buildRunning = false;
                     return;
                 }
 
                 // 2. Gecici .bat dosyasina derle + calistir komutlarini yaz
-                //    Neden .bat? iç içe tırnak cehennemi yok, cl.exe çıktısı doğru yakalanıyor
                 static char g_tempBatPath[MAX_PATH];
                 snprintf(g_tempBatPath, MAX_PATH, "%s\\_build_run.bat", PROJECTS_DIR);
 
@@ -1294,19 +1324,20 @@ void RenderCodegenWorkspace(ProjectManager& pm) {
                     g_buildRunning = false;
                     return;
                 }
-                // .bat icerigi — quoting sorunsuz, her yol ayri satir
                 fprintf(fbat, "@echo off\r\n");
                 fprintf(fbat, "call \"%s\" >nul 2>&1\r\n", VCVARS_PATH);
-                fprintf(fbat, "cl.exe /nologo /std:c++17 /O1 /EHsc \"%s\" /Fe:\"%s\"\r\n",
-                        g_tempCppPath, g_tempExePath);
+                if (selectedLang == 0) {
+                    fprintf(fbat, "cl.exe /nologo /std:c++17 /O1 /EHsc \"%s\" /Fe:\"%s\"\r\n", g_tempCppPath, g_tempExePath);
+                } else {
+                    fprintf(fbat, "cl.exe /nologo /TC /O1 \"%s\" /Fe:\"%s\"\r\n", g_tempCppPath, g_tempExePath);
+                }
                 fclose(fbat);
 
-                // .bat cikis kodunu ayri bir dosyaya yaz (capture icin)
                 std::string runBat = std::string("cmd.exe /c \"") + g_tempBatPath + "\" 2>&1";
 
-                g_buildOutput  = isEn
-                    ? "=== Compiling with MSVC (cl.exe / C++17) ===\n"
-                    : "=== MSVC (cl.exe / C++17) ile Derleniyor ===\n";
+                g_buildOutput  = (selectedLang == 0)
+                    ? (isEn ? "=== Compiling Modern C++ (cl.exe / C++17) ===\n" : "=== Modern C++ (cl.exe / C++17) Derleniyor ===\n")
+                    : (isEn ? "=== Compiling ANSI C (cl.exe / C99) ===\n" : "=== Saf ANSI C (cl.exe / C99) Derleniyor ===\n");
                 g_buildOutput += "Kaynak: ";
                 g_buildOutput += g_tempCppPath;
                 g_buildOutput += "\n\n";
@@ -1353,24 +1384,28 @@ void RenderCodegenWorkspace(ProjectManager& pm) {
     ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0.10f, 0.22f, 0.52f, 1.0f));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.16f, 0.38f, 0.80f, 1.0f));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(0.05f, 0.18f, 0.40f, 1.0f));
-    if (ImGui::Button(isEn ? "Open in CMD" : "CMD'de Ac", ImVec2(115, 30))) {
-        snprintf(g_tempCppPath, MAX_PATH, "%s\\_build_temp.cpp", PROJECTS_DIR);
+    if (ImGui::Button(isEn ? "Open in CMD" : "CMD'de Ac", ImVec2(105, 30))) {
+        const char* srcExt = (selectedLang == 0) ? ".cpp" : ".c";
+        snprintf(g_tempCppPath, MAX_PATH, "%s\\_build_temp%s", PROJECTS_DIR, srcExt);
         snprintf(g_tempExePath, MAX_PATH, "%s\\_build_temp.exe", PROJECTS_DIR);
         FILE* fout = nullptr;
         fopen_s(&fout, g_tempCppPath, "w");
-        if (fout) { fwrite(code.c_str(), 1, code.size(), fout); fclose(fout); }
+        if (fout) { fwrite(currentCode.c_str(), 1, currentCode.size(), fout); fclose(fout); }
 
-        // Harici interaktif .bat olustur (quoting hatasi olmadan derler ve calistirir)
         char interactiveBatPath[MAX_PATH];
         snprintf(interactiveBatPath, MAX_PATH, "%s\\_run_interactive.bat", PROJECTS_DIR);
         FILE* fcmd = nullptr;
         fopen_s(&fcmd, interactiveBatPath, "w");
         if (fcmd) {
             fprintf(fcmd, "@echo off\r\n");
-            fprintf(fcmd, "title C-Algorithm Interactive Runner\r\n");
-            fprintf(fcmd, "echo === C-Algorithm: Program Derleniyor ve Baslatiliyor... ===\r\n");
+            fprintf(fcmd, "title C-Algorithm Interactive Runner (%s)\r\n", (selectedLang == 0) ? "C++17" : "ANSI C");
+            fprintf(fcmd, "echo === C-Algorithm: Program Derleniyor ve Baslatiliyor (%s)... ===\r\n", (selectedLang == 0) ? "C++17" : "ANSI C");
             fprintf(fcmd, "call \"%s\" >nul 2>&1\r\n", VCVARS_PATH);
-            fprintf(fcmd, "cl.exe /nologo /std:c++17 /O1 /EHsc \"%s\" /Fe:\"%s\"\r\n", g_tempCppPath, g_tempExePath);
+            if (selectedLang == 0) {
+                fprintf(fcmd, "cl.exe /nologo /std:c++17 /O1 /EHsc \"%s\" /Fe:\"%s\"\r\n", g_tempCppPath, g_tempExePath);
+            } else {
+                fprintf(fcmd, "cl.exe /nologo /TC /O1 \"%s\" /Fe:\"%s\"\r\n", g_tempCppPath, g_tempExePath);
+            }
             fprintf(fcmd, "if %%errorlevel%% equ 0 (\r\n");
             fprintf(fcmd, "    echo === PROGRAM CALISTIRILIYOR ===\r\n");
             fprintf(fcmd, "    echo.\r\n");
@@ -1393,7 +1428,7 @@ void RenderCodegenWorkspace(ProjectManager& pm) {
     ImGui::SameLine();
 
     // Gereksinimler rehberi toggle
-    if (ImGui::Button(isEn ? "? Guide" : "? Rehber", ImVec2(80, 30))) {
+    if (ImGui::Button(isEn ? "? Guide" : "? Rehber", ImVec2(75, 30))) {
         g_showGuide = !g_showGuide;
     }
 
@@ -1441,8 +1476,10 @@ void RenderCodegenWorkspace(ProjectManager& pm) {
 
     ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.03f, 0.04f, 0.06f, 1.0f));
     ImGui::BeginChild("CodegenView", ImVec2(0, codeH), true);
-    ImGui::InputTextMultiline("##cppsrc", (char*)code.c_str(), code.size() + 1,
+    ImGui::InputTextMultiline("##srcview", (char*)currentCode.c_str(), currentCode.size() + 1,
         ImVec2(-1, -1), ImGuiInputTextFlags_ReadOnly);
+    ImGui::EndChild();
+    ImGui::PopStyleColor();
     ImGui::EndChild();
     ImGui::PopStyleColor();
 
@@ -2415,7 +2452,7 @@ void RenderSettingsWorkspace(ProjectManager& pm) {
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.55f, 0.25f, 1.0f));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.85f, 0.35f, 0.10f, 1.0f));
     if (ImGui::Button(isEn ? "☕ Buy Me a Coffee / Sponsor Developer" : "☕ Geliştiriciye Bir Kahve Ismarla (Buy Me a Coffee)", ImVec2(340, 38))) {
-        ShellExecuteA(nullptr, "open", "https://buymeacoffee.com/electryzdev", nullptr, nullptr, SW_SHOWNORMAL);
+        ShellExecuteA(nullptr, "open", "https://buymeacoffee.com/elictryzn", nullptr, nullptr, SW_SHOWNORMAL);
     }
     ImGui::PopStyleColor(3);
 

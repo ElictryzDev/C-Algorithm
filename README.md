@@ -4,7 +4,7 @@
 [![C++17](https://img.shields.io/badge/Language-C%2B%2B17-00599C.svg?logo=c%2B%2B)](https://isocpp.org/)
 [![DirectX 11](https://img.shields.io/badge/Graphics-DirectX_11-green.svg)](https://learn.microsoft.com/en-us/windows/win32/direct3d11/direct3d-11-graphics)
 [![Dear ImGui](https://img.shields.io/badge/GUI-Dear_ImGui-orange.svg)](https://github.com/ocornut/imgui)
-[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Donate-yellow.svg)](https://buymeacoffee.com/electryzdev)
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Donate-yellow.svg)](https://buymeacoffee.com/elictryzn)
 
 > **Modern, Yüksek Performanslı Görsel Algoritma & Veri Yapıları Mühendislik IDE'si**  
 > *Sıfır Web Teknolojisi, %100 Yerel C++17 / DirectX 11, 144+ FPS Donanım Hızlandırmalı Çizim.*  
@@ -64,7 +64,7 @@ C-Algorithm.exe
 
 C-Algorithm tamamen bağımsız, açık kaynaklı bir eğitim ve mühendislik girişimidir. Geliştirmeyi desteklemek, yeni özelliklerin eklenmesini hızlandırmak veya bir kahve ısmarlamak isterseniz:
 
-- ☕ **Buy Me a Coffee:** [buymeacoffee.com/electryzdev](https://buymeacoffee.com/electryzdev)
+- ☕ **Buy Me a Coffee:** [buymeacoffee.com/elictryzn](https://buymeacoffee.com/elictryzn)
 - 🐙 **GitHub:** [@ElictryzDev](https://github.com/ElictryzDev)
 
 ---
