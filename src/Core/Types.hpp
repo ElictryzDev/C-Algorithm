@@ -157,9 +157,9 @@ struct FlowNode {
     std::string mathRight = "b";
 
     // Kosul ve Dongu Ayarlari
-    std::string conditionExpr = "i < 10";  // If / While / Do-While / For kosulu
-    std::string loopInit = "int i = 0";    // For baslangic
-    std::string loopStep = "i++";          // For artis
+    std::string conditionExpr = "i <= 10";  // If / While / Do-While / For kosulu
+    std::string loopInit = "int i = 0";     // For baslangic
+    std::string loopStep = "i++";           // For artis
     // While / DoWhile govde ek satirlari (sayac++, x *= 2, vb.)
     std::vector<std::string> loopBodyStmts;  // Her eleman gövdeye ayrı satır olarak yazılır
 

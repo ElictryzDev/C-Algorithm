@@ -123,7 +123,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                     RenderCustomPrintScene(pm);
                     ImGui::EndTabItem();
                 }
-                if (ImGui::BeginTabItem(isEn ? "Live C++ Code" : "Canlı C++ Kodu")) {
+                if (ImGui::BeginTabItem(isEn ? "Live C/C++ Code View" : "Canlı C/C++ Kodu Görünümü")) {
                     RenderCodegenWorkspace(pm);
                     ImGui::EndTabItem();
                 }

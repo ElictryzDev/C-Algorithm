@@ -1242,13 +1242,13 @@ void RenderCodegenWorkspace(ProjectManager& pm) {
     ImGui::BeginChild("CodegenBar", ImVec2(0, 46), true);
     ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 4);
 
-    // Dil Seçim Butonları (Modern C++17 vs Saf ANSI C)
+    // Dil Seçim Butonları (C++17 Diline Dönüştür vs C Diline Dönüştür)
     if (selectedLang == 0) {
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.05f, 0.65f, 0.56f, 1.0f));
     } else {
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.18f, 0.10f, 0.28f, 1.0f));
     }
-    if (ImGui::Button("⚡ Modern C++ (C++17)", ImVec2(165, 30))) {
+    if (ImGui::Button(isEn ? "⚡ Convert to C++17" : "⚡ C++17 Diline Dönüştür", ImVec2(185, 30))) {
         selectedLang = 0;
     }
     ImGui::PopStyleColor();
@@ -1259,7 +1259,7 @@ void RenderCodegenWorkspace(ProjectManager& pm) {
     } else {
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.18f, 0.10f, 0.28f, 1.0f));
     }
-    if (ImGui::Button("☕ Standart ANSI C (C99)", ImVec2(175, 30))) {
+    if (ImGui::Button(isEn ? "☕ Convert to C" : "☕ C Diline Dönüştür", ImVec2(165, 30))) {
         selectedLang = 1;
     }
     ImGui::PopStyleColor();
@@ -1282,7 +1282,7 @@ void RenderCodegenWorkspace(ProjectManager& pm) {
         ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(0.05f, 0.38f, 0.12f, 1.0f));
         bool startBuild = ImGui::Button(
             isEn ? "Build & Run (In-App)" : "Derle & Calistir (Dahili)",
-            ImVec2(190, 30));
+            ImVec2(185, 30));
         ImGui::PopStyleColor(3);
 
         if (startBuild) {
@@ -1330,8 +1330,8 @@ void RenderCodegenWorkspace(ProjectManager& pm) {
                         std::string runBat = std::string("cmd.exe /c \"") + g_tempBatPath + "\" 2>&1";
 
                         g_buildOutput  = (selectedLang == 0)
-                            ? (isEn ? "=== Compiling Modern C++ (cl.exe / C++17) ===\n" : "=== Modern C++ (cl.exe / C++17) Derleniyor ===\n")
-                            : (isEn ? "=== Compiling ANSI C (cl.exe / C99) ===\n" : "=== Saf ANSI C (cl.exe / C99) Derleniyor ===\n");
+                            ? (isEn ? "=== Compiling as C++ Language (cl.exe / C++17)... ===\n" : "=== C++ Dili Olarak Derleniyor... ===\n")
+                            : (isEn ? "=== Compiling as C Language (cl.exe / C99)... ===\n" : "=== C Dili Olarak Derleniyor... ===\n");
                         g_buildOutput += "Kaynak: ";
                         g_buildOutput += g_tempCppPath;
                         g_buildOutput += "\n\n";
@@ -1379,11 +1379,11 @@ void RenderCodegenWorkspace(ProjectManager& pm) {
 
     ImGui::SameLine();
 
-    // Harici CMD penceresi dugmesi
+    // Harici CMD penceresi dugmesi (Komut İsteminde Aç (CMD))
     ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0.10f, 0.22f, 0.52f, 1.0f));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.16f, 0.38f, 0.80f, 1.0f));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(0.05f, 0.18f, 0.40f, 1.0f));
-    if (ImGui::Button(isEn ? "Open in CMD" : "CMD'de Ac", ImVec2(105, 30))) {
+    if (ImGui::Button(isEn ? "Open in Command Prompt (CMD)" : "Komut İsteminde Aç (CMD)", ImVec2(195, 30))) {
         const char* srcExt = (selectedLang == 0) ? ".cpp" : ".c";
         snprintf(g_tempCppPath, MAX_PATH, "%s\\_build_temp%s", PROJECTS_DIR, srcExt);
         snprintf(g_tempExePath, MAX_PATH, "%s\\_build_temp.exe", PROJECTS_DIR);
@@ -1398,7 +1398,7 @@ void RenderCodegenWorkspace(ProjectManager& pm) {
         if (fcmd) {
             fprintf(fcmd, "@echo off\r\n");
             fprintf(fcmd, "title C-Algorithm Interactive Runner (%s)\r\n", (selectedLang == 0) ? "C++17" : "ANSI C");
-            fprintf(fcmd, "echo === C-Algorithm: Program Derleniyor ve Baslatiliyor (%s)... ===\r\n", (selectedLang == 0) ? "C++17" : "ANSI C");
+            fprintf(fcmd, "echo === C-Algorithm: Program Derleniyor ve Baslatiliyor (%s)... ===\r\n", (selectedLang == 0) ? "C++ Dili" : "C Dili");
             fprintf(fcmd, "call \"%s\" >nul 2>&1\r\n", VCVARS_PATH);
             if (selectedLang == 0) {
                 fprintf(fcmd, "cl.exe /nologo /std:c++17 /O1 /EHsc \"%s\" /Fe:\"%s\"\r\n", g_tempCppPath, g_tempExePath);

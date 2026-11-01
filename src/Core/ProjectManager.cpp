@@ -94,7 +94,7 @@ FlowNode* ProjectManager::AddNode(NodeKind kind, const std::string& title, float
         case NodeKind::LoopFor:
             node.width = 240.0f;
             node.height = 100.0f;
-            node.conditionExpr = "i < 10";
+            node.conditionExpr = "i <= 10";
             node.loopInit = "int i = 0";
             node.loopStep = "i++";
             node.pins.push_back({ 0, "Giris", PinType::ExecIn, PinShape::Triangle, 14.0f, node.height * 0.5f });
@@ -443,6 +443,10 @@ bool ProjectManager::OpenProject(const std::string& fullPath) {
                     n->conditionExpr = tokens[9];
                     n->loopInit = tokens[10];
                     n->loopStep = tokens[11];
+                    // Eski projelerdeki tanimsiz x degiskenini otomatik i <= 10'a guncelle
+                    if (n->kind == NodeKind::LoopFor && (n->conditionExpr == "x < 10" || n->conditionExpr == "x <= 10")) {
+                        n->conditionExpr = "i <= 10";
+                    }
                 }
                 if (id >= nextId) nextId = id + 1;
             }
@@ -900,7 +904,9 @@ std::string ProjectManager::GenerateCppCode() {
             }
             else if (n->kind == NodeKind::LoopFor) {
                 ss << tabs << "// For Dongusu\n";
-                ss << tabs << "for (" << n->loopInit << "; " << n->conditionExpr << "; " << n->loopStep << ") {\n";
+                std::string cond = n->conditionExpr;
+                if (cond == "x < 10" || cond == "x <= 10") cond = "i <= 10";
+                ss << tabs << "for (" << n->loopInit << "; " << cond << "; " << n->loopStep << ") {\n";
                 int bodyNode = getTargetNode(curr, 1);
                 if (bodyNode > 0) generateChain(bodyNode, indent + 1);
                 ss << tabs << "}\n\n";
@@ -1019,7 +1025,7 @@ std::string ProjectManager::GenerateCCode() {
     std::stringstream ss;
     ss << "/* ======================================================== */\n";
     ss << "/* C-ALGORITHM ENGINE - SAF ANSI C (C99/C11) KODU           */\n";
-    ss << "/* Proje: " << projectName << "\n";
+    ss << "/* Proje: " << projectName << " */\n";
     ss << "/* Açıklama: C++ ek yükleri (iostream, vtable, RTTI)       */\n";
     ss << "/*           olmadan, saf libc ve stdio ile en hafif C kodu */\n";
     ss << "/* ======================================================== */\n\n";
@@ -1345,7 +1351,9 @@ std::string ProjectManager::GenerateCCode() {
             }
             else if (n->kind == NodeKind::LoopFor) {
                 ss << tabs << "/* For Döngüsü (C99) */\n";
-                ss << tabs << "for (" << n->loopInit << "; " << n->conditionExpr << "; " << n->loopStep << ") {\n";
+                std::string cond = n->conditionExpr;
+                if (cond == "x < 10" || cond == "x <= 10") cond = "i <= 10";
+                ss << tabs << "for (" << n->loopInit << "; " << cond << "; " << n->loopStep << ") {\n";
                 int bodyNode = getTargetNode(curr, 1);
                 if (bodyNode > 0) generateCChain(bodyNode, indent + 1);
                 ss << tabs << "}\n\n";
