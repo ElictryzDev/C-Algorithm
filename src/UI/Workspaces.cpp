@@ -209,44 +209,106 @@ inline void DrawNeonRect(ImDrawList* drawList, ImVec2 pMin, ImVec2 pMax, ImU32 b
     drawList->AddRect(pMin, pMax, baseCol,  rounding, 0, baseThick);
 }
 
+// Ok Başı Çizim Yardımcısı (Bézier Telinin Hedef Bloğa Saplanan Ucu)
+inline void DrawWireArrowhead(ImDrawList* drawList, ImVec2 tip, ImVec2 dir, float size, ImU32 col) {
+    float len = hypotf(dir.x, dir.y);
+    if (len < 0.001f) { dir = ImVec2(1.0f, 0.0f); len = 1.0f; }
+    ImVec2 u(dir.x / len, dir.y / len);
+    ImVec2 v(-u.y, u.x);
+
+    ImVec2 p0 = tip;
+    ImVec2 p1(tip.x - u.x * size + v.x * (size * 0.55f),
+              tip.y - u.y * size + v.y * (size * 0.55f));
+    ImVec2 p2(tip.x - u.x * size - v.x * (size * 0.55f),
+              tip.y - u.y * size - v.y * (size * 0.55f));
+
+    drawList->AddTriangleFilled(p0, p1, p2, col);
+}
+
 struct NodeColorTheme {
     ImU32 bgCol;
     ImU32 neonCol;
     ImU32 headCol;
+    ImU32 textCol;
     const char* categoryBadge;
 };
 
-inline NodeColorTheme GetNodeTheme(NodeKind kind) {
-    switch (kind) {
-        case NodeKind::Start:
-            return { IM_COL32(10, 32, 22, 240), IM_COL32(16, 185, 129, 255), IM_COL32(16, 185, 129, 45), "BASLANGIC" };
-        case NodeKind::End:
-            return { IM_COL32(36, 12, 16, 240), IM_COL32(239, 68, 68, 255), IM_COL32(239, 68, 68, 45), "BITIS" };
-        case NodeKind::VariableDeclare:
-            return { IM_COL32(12, 26, 44, 240), IM_COL32(14, 165, 233, 255), IM_COL32(14, 165, 233, 50), "DEGISKEN" };
-        case NodeKind::Assign:
-            return { IM_COL32(26, 16, 42, 240), IM_COL32(168, 85, 247, 255), IM_COL32(168, 85, 247, 50), "ATAMA" };
-        case NodeKind::MathOp:
-            return { IM_COL32(10, 32, 38, 240), IM_COL32(6, 182, 212, 255), IM_COL32(6, 182, 212, 50), "MATEMATIK" };
-        case NodeKind::Input:
-            return { IM_COL32(10, 34, 34, 240), IM_COL32(20, 184, 166, 255), IM_COL32(20, 184, 166, 50), "GIRDI (cin)" };
-        case NodeKind::Print:
-            return { IM_COL32(24, 18, 46, 240), IM_COL32(139, 92, 246, 255), IM_COL32(139, 92, 246, 50), "CIKTI (cout)" };
-        case NodeKind::BranchIf:
-            return { IM_COL32(38, 26, 10, 240), IM_COL32(245, 158, 11, 255), IM_COL32(245, 158, 11, 50), "KOSUL (if)" };
-        case NodeKind::LoopWhile:
-            return { IM_COL32(38, 14, 24, 240), IM_COL32(244, 63, 94, 255), IM_COL32(244, 63, 94, 50), "DONGU (while)" };
-        case NodeKind::LoopDoWhile:
-            return { IM_COL32(38, 14, 24, 240), IM_COL32(244, 63, 94, 255), IM_COL32(244, 63, 94, 50), "DONGU (do-while)" };
-        case NodeKind::LoopFor:
-            return { IM_COL32(38, 14, 24, 240), IM_COL32(244, 63, 94, 255), IM_COL32(244, 63, 94, 50), "DONGU (for)" };
-        case NodeKind::SwitchCase:
-            return { IM_COL32(32, 24, 14, 240), IM_COL32(217, 119, 6, 255), IM_COL32(217, 119, 6, 50), "SWITCH-CASE" };
-        case NodeKind::StructDef:
-            return { IM_COL32(34, 22, 12, 240), IM_COL32(217, 119, 6, 255), IM_COL32(217, 119, 6, 50), "STRUCT" };
-        default:
-            return { IM_COL32(18, 20, 40, 240), IM_COL32(99, 102, 241, 255), IM_COL32(99, 102, 241, 50), "VERI YAPISI" };
+inline NodeColorTheme GetNodeTheme(NodeKind kind, AppTheme theme, bool isEn) {
+    bool isLight = (theme == AppTheme::LightPastelNeon);
+
+    if (isLight) {
+        // Açık Pastel Pembe & Petrol Yeşili Lüks Tema
+        ImU32 txtCol = IM_COL32(15, 23, 42, 255); // Derin net siyah/arduvaz
+        switch (kind) {
+            case NodeKind::Start:
+                return { IM_COL32(240, 253, 248, 252), IM_COL32(15, 118, 110, 255), IM_COL32(15, 118, 110, 35), txtCol, isEn ? "START" : "BASLANGIC" };
+            case NodeKind::End:
+                return { IM_COL32(255, 241, 242, 252), IM_COL32(225, 29, 72, 255), IM_COL32(225, 29, 72, 35), txtCol, isEn ? "END" : "BITIS" };
+            case NodeKind::VariableDeclare:
+                return { IM_COL32(240, 249, 255, 252), IM_COL32(2, 132, 199, 255), IM_COL32(2, 132, 199, 35), txtCol, isEn ? "VARIABLE" : "DEGISKEN" };
+            case NodeKind::Assign:
+                return { IM_COL32(250, 245, 255, 252), IM_COL32(124, 58, 237, 255), IM_COL32(124, 58, 237, 35), txtCol, isEn ? "ASSIGN" : "ATAMA" };
+            case NodeKind::MathOp:
+                return { IM_COL32(240, 253, 250, 252), IM_COL32(13, 148, 136, 255), IM_COL32(13, 148, 136, 35), txtCol, isEn ? "MATH" : "MATEMATIK" };
+            case NodeKind::Input:
+                return { IM_COL32(236, 253, 245, 252), IM_COL32(5, 150, 105, 255), IM_COL32(5, 150, 105, 35), txtCol, isEn ? "INPUT (cin)" : "GIRDI (cin)" };
+            case NodeKind::Print:
+                return { IM_COL32(245, 243, 255, 252), IM_COL32(99, 102, 241, 255), IM_COL32(99, 102, 241, 35), txtCol, isEn ? "PRINT (cout)" : "CIKTI (cout)" };
+            case NodeKind::BranchIf:
+                return { IM_COL32(254, 252, 232, 252), IM_COL32(217, 119, 6, 255), IM_COL32(217, 119, 6, 35), txtCol, isEn ? "CONDITION (if)" : "KOSUL (if)" };
+            case NodeKind::LoopWhile:
+                return { IM_COL32(253, 242, 248, 252), IM_COL32(219, 39, 119, 255), IM_COL32(219, 39, 119, 35), txtCol, isEn ? "WHILE LOOP" : "DONGU (while)" };
+            case NodeKind::LoopDoWhile:
+                return { IM_COL32(253, 242, 248, 252), IM_COL32(219, 39, 119, 255), IM_COL32(219, 39, 119, 35), txtCol, isEn ? "DO-WHILE" : "DONGU (do-while)" };
+            case NodeKind::LoopFor:
+                return { IM_COL32(253, 242, 248, 252), IM_COL32(219, 39, 119, 255), IM_COL32(219, 39, 119, 35), txtCol, isEn ? "FOR LOOP" : "DONGU (for)" };
+            case NodeKind::SwitchCase:
+                return { IM_COL32(254, 243, 199, 252), IM_COL32(217, 119, 6, 255), IM_COL32(217, 119, 6, 35), txtCol, isEn ? "SWITCH-CASE" : "SWITCH-CASE" };
+            case NodeKind::StructDef:
+                return { IM_COL32(254, 243, 199, 252), IM_COL32(217, 119, 6, 255), IM_COL32(217, 119, 6, 35), txtCol, isEn ? "STRUCT" : "STRUCT" };
+            default:
+                return { IM_COL32(238, 242, 255, 252), IM_COL32(79, 70, 229, 255), IM_COL32(79, 70, 229, 35), txtCol, isEn ? "DATA STRUCTURE" : "VERI YAPISI" };
+        }
+    } else {
+        // Koyu Cyberpunk Neon
+        ImU32 txtCol = IM_COL32(245, 250, 255, 255);
+        switch (kind) {
+            case NodeKind::Start:
+                return { IM_COL32(10, 32, 22, 240), IM_COL32(16, 185, 129, 255), IM_COL32(16, 185, 129, 45), txtCol, isEn ? "START" : "BASLANGIC" };
+            case NodeKind::End:
+                return { IM_COL32(36, 12, 16, 240), IM_COL32(239, 68, 68, 255), IM_COL32(239, 68, 68, 45), txtCol, isEn ? "END" : "BITIS" };
+            case NodeKind::VariableDeclare:
+                return { IM_COL32(12, 26, 44, 240), IM_COL32(14, 165, 233, 255), IM_COL32(14, 165, 233, 50), txtCol, isEn ? "VARIABLE" : "DEGISKEN" };
+            case NodeKind::Assign:
+                return { IM_COL32(26, 16, 42, 240), IM_COL32(168, 85, 247, 255), IM_COL32(168, 85, 247, 50), txtCol, isEn ? "ASSIGN" : "ATAMA" };
+            case NodeKind::MathOp:
+                return { IM_COL32(10, 32, 38, 240), IM_COL32(6, 182, 212, 255), IM_COL32(6, 182, 212, 50), txtCol, isEn ? "MATH" : "MATEMATIK" };
+            case NodeKind::Input:
+                return { IM_COL32(10, 34, 34, 240), IM_COL32(20, 184, 166, 255), IM_COL32(20, 184, 166, 50), txtCol, isEn ? "INPUT (cin)" : "GIRDI (cin)" };
+            case NodeKind::Print:
+                return { IM_COL32(24, 18, 46, 240), IM_COL32(139, 92, 246, 255), IM_COL32(139, 92, 246, 50), txtCol, isEn ? "PRINT (cout)" : "CIKTI (cout)" };
+            case NodeKind::BranchIf:
+                return { IM_COL32(38, 26, 10, 240), IM_COL32(245, 158, 11, 255), IM_COL32(245, 158, 11, 50), txtCol, isEn ? "CONDITION (if)" : "KOSUL (if)" };
+            case NodeKind::LoopWhile:
+                return { IM_COL32(38, 14, 24, 240), IM_COL32(244, 63, 94, 255), IM_COL32(244, 63, 94, 50), txtCol, isEn ? "WHILE LOOP" : "DONGU (while)" };
+            case NodeKind::LoopDoWhile:
+                return { IM_COL32(38, 14, 24, 240), IM_COL32(244, 63, 94, 255), IM_COL32(244, 63, 94, 50), txtCol, isEn ? "DO-WHILE" : "DONGU (do-while)" };
+            case NodeKind::LoopFor:
+                return { IM_COL32(38, 14, 24, 240), IM_COL32(244, 63, 94, 255), IM_COL32(244, 63, 94, 50), txtCol, isEn ? "FOR LOOP" : "DONGU (for)" };
+            case NodeKind::SwitchCase:
+                return { IM_COL32(32, 24, 14, 240), IM_COL32(217, 119, 6, 255), IM_COL32(217, 119, 6, 50), txtCol, isEn ? "SWITCH-CASE" : "SWITCH-CASE" };
+            case NodeKind::StructDef:
+                return { IM_COL32(34, 22, 12, 240), IM_COL32(217, 119, 6, 255), IM_COL32(217, 119, 6, 50), txtCol, isEn ? "STRUCT" : "STRUCT" };
+            default:
+                return { IM_COL32(18, 20, 40, 240), IM_COL32(99, 102, 241, 255), IM_COL32(99, 102, 241, 50), txtCol, isEn ? "DATA STRUCTURE" : "VERI YAPISI" };
+        }
     }
+}
+
+inline std::string GetNodeLocalizedTitle(const FlowNode& n, bool isEn) {
+    if (n.kind == NodeKind::Start) return isEn ? "Program Start" : "Yazilimin Baslangici";
+    if (n.kind == NodeKind::End) return isEn ? "Program End (return 0)" : "Yazilimin Sonlanisi";
+    return n.title;
 }
 
 inline std::string FormatNodeLiveContent(const FlowNode& n) {
@@ -441,6 +503,10 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
     ImVec2 mousePos = ImGui::GetIO().MousePos;
     ImVec2 size = ImGui::GetContentRegionAvail();
 
+    bool isLight = (pm.currentTheme == AppTheme::LightPastelNeon);
+    ImU32 canvasBgCol = isLight ? IM_COL32(245, 247, 250, 255) : IM_COL32(14, 18, 24, 255);
+    drawList->AddRectFilled(screenOrigin, ImVec2(screenOrigin.x + size.x, screenOrigin.y + size.y), canvasBgCol);
+
     bool isCanvasHovered = ImGui::IsWindowHovered();
 
     // 1. Orta Tus (Middle Click) veya Alt + Sol Tik ile Harita Kaydirma (Pan)
@@ -458,18 +524,16 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
         if (g_flowZoomLevel < 0.6f) g_flowZoomLevel = 0.6f;
         if (g_flowZoomLevel > 1.6f) g_flowZoomLevel = 1.6f;
 
-        // Farenin altindaki dunya noktasini hesapla
         float worldMouseX = (mousePos.x - screenOrigin.x - g_flowPanOffset.x) / prevZoom;
         float worldMouseY = (mousePos.y - screenOrigin.y - g_flowPanOffset.y) / prevZoom;
 
-        // Yeni zoom seviyesinde imlecin altindaki dunya noktasini kilitle
         g_flowPanOffset.x = (mousePos.x - screenOrigin.x) - worldMouseX * g_flowZoomLevel;
         g_flowPanOffset.y = (mousePos.y - screenOrigin.y) - worldMouseY * g_flowZoomLevel;
     }
 
     // 3. Sonsuz Izgara Cizimi (Sifir Ek Bellek Maliyetli Modulo Geometrisi)
     if (pm.showGrid) {
-        ImU32 gridCol = IM_COL32(35, 40, 50, 255);
+        ImU32 gridCol = isLight ? IM_COL32(220, 226, 235, 255) : IM_COL32(35, 40, 50, 255);
         float gridSize = 32.0f * g_flowZoomLevel;
         float startX = fmodf(g_flowPanOffset.x, gridSize);
         if (startX < 0.0f) startX += gridSize;
@@ -504,6 +568,9 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
     static ImVec2 boxSelectStart = { 0, 0 };
     static std::set<int> multiSelectedNodes;
 
+    // Cift Tik ile Duzenleme Modali Durumu
+    static int modalEditingNodeId = -1;
+
     // Sag Tik Menusu Icin Tiklanan Nokta
     static ImVec2 contextMenuPos = { 0, 0 };
 
@@ -527,7 +594,7 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
                     pMin.y + n.height * g_flowZoomLevel);
 
         bool isSelected = (selectedNodeId == n.id || multiSelectedNodes.count(n.id) > 0);
-        NodeColorTheme theme = GetNodeTheme(n.kind);
+        NodeColorTheme theme = GetNodeTheme(n.kind, pm.currentTheme, isEn);
         FlowchartShape shape = GetFlowchartShape(n.kind);
 
         ImU32 borderCol = n.hasWarning ? warnNeonCol : (isSelected ? IM_COL32(0, 240, 255, 255) : theme.neonCol);
@@ -590,9 +657,9 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
         }
     }
 
-    // ── ADIM 2: BEZIER KABLOLARI (LAZER NEON AKIS) ───────────────────────
+    // ── ADIM 2: BEZIER KABLOLARI (OK BASLI VE SOKET NOKTALI AKIS) ────────
     // Not: Kablolar dugum zeminlerinin ustunde, ancak metinlerin altinda cizilir.
-    // Boylece dugumlerin arkasinda asla kaybolmaz ve metinleri kapatmaz!
+    // Başlangıç noktasında dairesel soket (•), hedef noktasında ise ok başı (▶) yer alır!
     int wireToDelete = -1;
     bool isAltDown = ImGui::GetIO().KeyAlt;
 
@@ -622,22 +689,33 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
             if (wireHovered && isAltDown) {
                 drawList->AddBezierCubic(p1, c1, c2, p2, IM_COL32(255, 60, 60, 255), 4.5f);
                 drawList->AddCircleFilled(midPt, 7.0f, IM_COL32(255, 30, 30, 255));
-                drawList->AddText(ImVec2(midPt.x + 10, midPt.y - 10), IM_COL32(255, 100, 100, 255), "[Kabloyu Kes]");
+                drawList->AddText(ImVec2(midPt.x + 10, midPt.y - 10), IM_COL32(255, 100, 100, 255), isEn ? "[Cut Wire]" : "[Kabloyu Kes]");
                 if (ImGui::IsMouseClicked(0)) {
                     wireToDelete = w.id;
                 }
             } else {
-                ImU32 wireGlow = isBottomPin ? IM_COL32(240, 90, 90, 60) : IM_COL32(0, 180, 240, 65);
-                ImU32 wireCore = isBottomPin ? IM_COL32(255, 120, 90, 255) : IM_COL32(0, 230, 255, 255);
+                // 1. Kaynak Soket Noktasi (Solid Socket Dot)
+                ImU32 dotCol = isBottomPin ? IM_COL32(239, 68, 68, 255) : (isLight ? IM_COL32(15, 118, 110, 255) : IM_COL32(0, 220, 255, 255));
+                drawList->AddCircleFilled(p1, 4.0f * g_flowZoomLevel, dotCol);
+                drawList->AddCircle(p1, 5.5f * g_flowZoomLevel, IM_COL32(255, 255, 255, 220), 0, 1.2f);
+
+                // 2. Lazer Bézier Teli
+                ImU32 wireGlow = isBottomPin ? (isLight ? IM_COL32(244, 63, 94, 60) : IM_COL32(240, 90, 90, 60))
+                                             : (isLight ? IM_COL32(20, 184, 166, 60) : IM_COL32(0, 180, 240, 65));
+                ImU32 wireCore = isBottomPin ? (isLight ? IM_COL32(225, 29, 72, 255) : IM_COL32(255, 120, 90, 255))
+                                             : (isLight ? IM_COL32(13, 148, 136, 255) : IM_COL32(0, 230, 255, 255));
                 drawList->AddBezierCubic(p1, c1, c2, p2, wireGlow, 5.5f);
-                drawList->AddBezierCubic(p1, c1, c2, p2, wireCore, 2.2f);
+                drawList->AddBezierCubic(p1, c1, c2, p2, wireCore, 2.4f);
+
+                // 3. Hedef Ok Başı (Target Arrowhead) - Teğet doğrultusunda tam p2'ye saplanır!
+                DrawWireArrowhead(drawList, p2, ImVec2(p2.x - c2.x, p2.y - c2.y), 11.0f * g_flowZoomLevel, wireCore);
             }
         }
     }
 
     if (wireToDelete > 0) {
         pm.DisconnectWire(wireToDelete);
-        pm.statusMessage = "Kablo baglantisi koparildi (Alt + Tik).";
+        pm.statusMessage = isEn ? "Wire connection removed." : "Kablo baglantisi koparildi (Alt + Tik).";
     }
 
     // ── ADIM 3: DUGUM ICI CANLI METIN VE IFADELER ─────────────────────────
@@ -648,7 +726,7 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
                     pMin.y + n.height * g_flowZoomLevel);
         ImVec2 pCenter((pMin.x + pMax.x) * 0.5f, (pMin.y + pMax.y) * 0.5f);
 
-        NodeColorTheme theme = GetNodeTheme(n.kind);
+        NodeColorTheme theme = GetNodeTheme(n.kind, pm.currentTheme, isEn);
         FlowchartShape shape = GetFlowchartShape(n.kind);
         std::string liveExpr = FormatNodeLiveContent(n);
         if (liveExpr.length() > 32) liveExpr = liveExpr.substr(0, 29) + "...";
@@ -660,15 +738,16 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
             drawList->AddText(ImVec2(pCenter.x - szTitle.x * 0.5f, pMin.y + 12.0f * g_flowZoomLevel), theme.neonCol, theme.categoryBadge);
 
             ImVec2 szExpr = ImGui::CalcTextSize(liveExpr.c_str());
-            drawList->AddText(ImVec2(pCenter.x - szExpr.x * 0.5f, pCenter.y - szExpr.y * 0.5f), IM_COL32(255, 255, 255, 255), liveExpr.c_str());
+            drawList->AddText(ImVec2(pCenter.x - szExpr.x * 0.5f, pCenter.y - szExpr.y * 0.5f), theme.textCol, liveExpr.c_str());
 
-            // Dal İpuçları
-            drawList->AddText(ImVec2(pMax.x - 48.0f * g_flowZoomLevel, pCenter.y - 18.0f), IM_COL32(46, 204, 113, 255), "Evet");
-            drawList->AddText(ImVec2(pCenter.x + 8.0f, pMax.y - 24.0f * g_flowZoomLevel), IM_COL32(231, 76, 60, 255), "Hayir");
+            // Dal İpuçları (Evet / Hayır)
+            drawList->AddText(ImVec2(pMax.x - 48.0f * g_flowZoomLevel, pCenter.y - 18.0f), IM_COL32(46, 204, 113, 255), isEn ? "True" : "Evet");
+            drawList->AddText(ImVec2(pCenter.x + 8.0f, pMax.y - 24.0f * g_flowZoomLevel), IM_COL32(231, 76, 60, 255), isEn ? "False" : "Hayir");
         } else if (shape == FlowchartShape::Pill) {
             // Start / End
-            ImVec2 szTitle = ImGui::CalcTextSize(n.title.c_str());
-            drawList->AddText(ImVec2(pCenter.x - szTitle.x * 0.5f, pCenter.y - 14.0f), IM_COL32(255, 255, 255, 255), n.title.c_str());
+            std::string titleStr = GetNodeLocalizedTitle(n, isEn);
+            ImVec2 szTitle = ImGui::CalcTextSize(titleStr.c_str());
+            drawList->AddText(ImVec2(pCenter.x - szTitle.x * 0.5f, pCenter.y - 14.0f), theme.textCol, titleStr.c_str());
             ImVec2 szExpr = ImGui::CalcTextSize(liveExpr.c_str());
             drawList->AddText(ImVec2(pCenter.x - szExpr.x * 0.5f, pCenter.y + 2.0f), theme.neonCol, liveExpr.c_str());
         } else {
@@ -676,12 +755,10 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
             float titleY = pMin.y + 5.0f * g_flowZoomLevel;
             float textIndent = (shape == FlowchartShape::Parallelogram) ? (22.0f * g_flowZoomLevel) : (14.0f * g_flowZoomLevel);
 
-            // Başlık / Kategori
             drawList->AddText(ImVec2(pMin.x + textIndent, titleY), theme.neonCol, theme.categoryBadge);
 
-            // Canlı Değer / İşlem Gövdesi
             float bodyY = pCenter.y - 3.0f * g_flowZoomLevel;
-            drawList->AddText(ImVec2(pMin.x + textIndent, bodyY), IM_COL32(250, 252, 255, 255), liveExpr.c_str());
+            drawList->AddText(ImVec2(pMin.x + textIndent, bodyY), theme.textCol, liveExpr.c_str());
         }
 
         // Canlı Uyarı Rozeti
@@ -691,7 +768,7 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
         }
     }
 
-    // ── ADIM 4: PINLER VE ETKİLEŞİM ──────────────────────────────────────
+    // ── ADIM 4: PINLER VE ETKİLEŞİM (YAZISIZ TEMİZ SOKETLER & ÇİFT TIK) ───
     for (auto& n : pm.nodes) {
         ImVec2 pMin(screenOrigin.x + g_flowPanOffset.x + n.x * g_flowZoomLevel,
                     screenOrigin.y + g_flowPanOffset.y + n.y * g_flowZoomLevel);
@@ -712,52 +789,31 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
                 hoveredPinIdx = (int)pIdx;
             }
 
-            ImU32 pCol = (pin.type == PinType::ExecIn || pin.type == PinType::ExecOut) ? IM_COL32(0, 200, 232, 255) : IM_COL32(63, 185, 80, 255);
-            if (n.kind == NodeKind::BranchIf && pIdx == 1) pCol = IM_COL32(46, 204, 113, 255); // True
-            if (n.kind == NodeKind::BranchIf && pIdx == 2) pCol = IM_COL32(231, 76, 60, 255);  // False
-            if (isPinHovered) pCol = IM_COL32(255, 255, 100, 255);
-
-            if (pin.shape == PinShape::Diamond) {
-                float s = 6.0f * g_flowZoomLevel;
-                drawList->AddQuadFilled(
-                    ImVec2(pinPos.x, pinPos.y - s),
-                    ImVec2(pinPos.x + s, pinPos.y),
-                    ImVec2(pinPos.x, pinPos.y + s),
-                    ImVec2(pinPos.x - s, pinPos.y),
-                    pCol
-                );
-            } else if (pin.shape == PinShape::Triangle) {
-                float s = 6.0f * g_flowZoomLevel;
-                drawList->AddTriangleFilled(
-                    ImVec2(pinPos.x - s, pinPos.y - s),
-                    ImVec2(pinPos.x + s, pinPos.y),
-                    ImVec2(pinPos.x - s, pinPos.y + s),
-                    pCol
-                );
+            // Temiz Soket Çizimi (Giriş/Çıkış metinleri silindi, minimal ve şık)
+            if (pin.type == PinType::ExecIn) {
+                // Giriş docking noktası
+                drawList->AddCircleFilled(pinPos, 3.5f * g_flowZoomLevel, isPinHovered ? IM_COL32(255, 230, 80, 255) : (isLight ? IM_COL32(148, 163, 184, 255) : IM_COL32(100, 116, 139, 255)));
+                drawList->AddCircle(pinPos, 4.5f * g_flowZoomLevel, IM_COL32(255, 255, 255, isPinHovered ? 255 : 120));
             } else {
-                drawList->AddCircleFilled(pinPos, 6.0f * g_flowZoomLevel, pCol);
-            }
-
-            drawList->AddCircle(pinPos, 7.5f * g_flowZoomLevel, IM_COL32(255, 255, 255, isPinHovered ? 255 : 140));
-
-            // Pin İsmi (Diamond hariç)
-            if (n.kind != NodeKind::BranchIf) {
-                if (pin.type == PinType::ExecIn) {
-                    drawList->AddText(ImVec2(pinPos.x + 12 * g_flowZoomLevel, pinPos.y - 8), IM_COL32(180, 190, 205, 255), pin.name.c_str());
-                } else {
-                    ImVec2 textSize = ImGui::CalcTextSize(pin.name.c_str());
-                    drawList->AddText(ImVec2(pinPos.x - textSize.x - 12 * g_flowZoomLevel, pinPos.y - 8), IM_COL32(180, 190, 205, 255), pin.name.c_str());
-                }
+                // Çıkış soket noktası
+                ImU32 pCol = (n.kind == NodeKind::BranchIf && pIdx == 2) ? IM_COL32(239, 68, 68, 255) : (isLight ? IM_COL32(15, 118, 110, 255) : IM_COL32(0, 210, 255, 255));
+                if (isPinHovered) pCol = IM_COL32(255, 220, 50, 255);
+                drawList->AddCircleFilled(pinPos, 4.5f * g_flowZoomLevel, pCol);
+                drawList->AddCircle(pinPos, 6.0f * g_flowZoomLevel, IM_COL32(255, 255, 255, isPinHovered ? 255 : 160));
             }
         }
 
-        // Dugum Surukleme & Secim Tetikleyicisi (Yalnizca pine basilmiyorsa!)
-        if (ImGui::IsMouseClicked(0) && isNodeHovered && hoveredPinNode == -1) {
-            selectedNodeId = n.id;
-            multiSelectedNodes.clear();
-            multiSelectedNodes.insert(n.id);
-            draggingId = n.id;
-            dragOffset = ImVec2(mousePos.x - pMin.x, mousePos.y - pMin.y);
+        // Dugum Surukleme, Secim ve CIFT TIK ILE MODAL ACMA Tetikleyicisi
+        if (isNodeHovered && hoveredPinNode == -1) {
+            if (ImGui::IsMouseDoubleClicked(0)) {
+                modalEditingNodeId = n.id;
+            } else if (ImGui::IsMouseClicked(0)) {
+                selectedNodeId = n.id;
+                multiSelectedNodes.clear();
+                multiSelectedNodes.insert(n.id);
+                draggingId = n.id;
+                dragOffset = ImVec2(mousePos.x - pMin.x, mousePos.y - pMin.y);
+            }
         }
 
         if (draggingId == n.id) {
@@ -772,7 +828,7 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
         }
     }
 
-    // ── 2. Pinden Canli Kablo Cekme Etkilesimi ─────────────────────────────
+    // ── 2. Pinden Canli Kablo Cekme Etkilesimi (Ok Başlı Canlı Çekim) ──────
     if (ImGui::IsMouseClicked(0) && hoveredPinNode > 0) {
         FlowNode* fn = pm.GetNode(hoveredPinNode);
         if (fn && hoveredPinIdx < (int)fn->pins.size()) {
@@ -785,17 +841,23 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
 
     if (wireDragFromNode > 0) {
         if (ImGui::IsMouseDown(0)) {
-            // Farenin ucuna dogru dinamik kablo ciz
+            FlowNode* srcNode = pm.GetNode(wireDragFromNode);
+            bool isBottomSrc = (srcNode && srcNode->kind == NodeKind::BranchIf && wireDragFromPin == 2);
             float dx = fabsf(mousePos.x - wireDragStartPos.x) * 0.5f;
             if (dx < 40.0f * g_flowZoomLevel) dx = 40.0f * g_flowZoomLevel;
-            ImVec2 c1(wireDragStartPos.x + dx, wireDragStartPos.y);
+            float dy = fabsf(mousePos.y - wireDragStartPos.y) * 0.5f;
+            if (dy < 40.0f * g_flowZoomLevel) dy = 40.0f * g_flowZoomLevel;
+
+            ImVec2 c1 = isBottomSrc ? ImVec2(wireDragStartPos.x, wireDragStartPos.y + dy) : ImVec2(wireDragStartPos.x + dx, wireDragStartPos.y);
             ImVec2 c2(mousePos.x - dx, mousePos.y);
 
-            drawList->AddBezierCubic(wireDragStartPos, c1, c2, mousePos, IM_COL32(255, 220, 50, 100), 5.0f);
-            drawList->AddBezierCubic(wireDragStartPos, c1, c2, mousePos, IM_COL32(255, 255, 100, 255), 2.5f);
-            drawList->AddCircleFilled(mousePos, 5.0f, IM_COL32(255, 255, 100, 255));
+            drawList->AddCircleFilled(wireDragStartPos, 4.5f * g_flowZoomLevel, IM_COL32(245, 158, 11, 255));
+            drawList->AddBezierCubic(wireDragStartPos, c1, c2, mousePos, IM_COL32(245, 158, 11, 70), 5.5f);
+            drawList->AddBezierCubic(wireDragStartPos, c1, c2, mousePos, IM_COL32(255, 200, 50, 255), 2.5f);
+
+            // Farenin ucunda yönü gösteren dinamik ok başı!
+            DrawWireArrowhead(drawList, mousePos, ImVec2(mousePos.x - c2.x, mousePos.y - c2.y), 12.0f * g_flowZoomLevel, IM_COL32(255, 210, 60, 255));
         } else {
-            // Fare birakildi! Hedef pin var mi kontrol et
             if (hoveredPinNode > 0 && hoveredPinNode != wireDragFromNode) {
                 pm.ConnectPins(wireDragFromNode, wireDragFromPin, hoveredPinNode, hoveredPinIdx);
             }
@@ -806,7 +868,6 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
 
     // ── 3. Bos Alan Tiklamasi: Kutu Secimi (Marquee Selection) ────────────
     if (ImGui::IsMouseClicked(0) && isCanvasHovered && draggingId == -1 && wireDragFromNode == -1 && hoveredPinNode == -1) {
-        // Herhangi bir dugume tiklanmadiysa kutu secimini baslat
         isBoxSelecting = true;
         boxSelectStart = mousePos;
         multiSelectedNodes.clear();
@@ -821,7 +882,6 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
             drawList->AddRectFilled(bMin, bMax, IM_COL32(0, 160, 255, 35));
             drawList->AddRect(bMin, bMax, IM_COL32(0, 180, 255, 200), 0.0f, 0, 1.5f);
 
-            // Kutunun icindeki dugumleri sec
             for (const auto& n : pm.nodes) {
                 float nLeft = screenOrigin.x + g_flowPanOffset.x + n.x * g_flowZoomLevel;
                 float nRight = nLeft + n.width * g_flowZoomLevel;
@@ -846,73 +906,122 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
     }
 
     if (ImGui::BeginPopup("NodeSpawnMenu")) {
-        ImGui::TextColored(ImVec4(0, 0.85f, 1.0f, 1.0f), "Dugum Ekle (Spawn Node)");
+        ImGui::TextColored(ImVec4(0, 0.85f, 1.0f, 1.0f), isEn ? "Spawn Node:" : "Dugum Ekle (Spawn Node):");
         ImGui::Separator();
 
-        if (ImGui::MenuItem("Event Software Start")) {
-            pm.AddNode(NodeKind::Start, "Event Software Start", contextMenuPos.x, contextMenuPos.y);
+        if (ImGui::MenuItem(isEn ? "Program Start" : "Yazilimin Baslangici")) {
+            pm.AddNode(NodeKind::Start, isEn ? "Program Start" : "Yazilimin Baslangici", contextMenuPos.x, contextMenuPos.y);
         }
-        if (ImGui::MenuItem("Variable Declare (Tanimla)")) {
-            pm.AddNode(NodeKind::VariableDeclare, "Variable Declare", contextMenuPos.x, contextMenuPos.y);
+        if (ImGui::MenuItem(isEn ? "Variable Declare" : "Degisken Tanimla")) {
+            pm.AddNode(NodeKind::VariableDeclare, isEn ? "Variable Declare" : "Degisken Tanimla", contextMenuPos.x, contextMenuPos.y);
         }
-        if (ImGui::MenuItem("Struct Definition (Veri Yapisi)")) {
-            pm.AddNode(NodeKind::StructDef, "Struct Definition", contextMenuPos.x, contextMenuPos.y);
+        if (ImGui::MenuItem(isEn ? "Struct Definition" : "Struct Tanimla")) {
+            pm.AddNode(NodeKind::StructDef, isEn ? "Struct Definition" : "Struct Tanimla", contextMenuPos.x, contextMenuPos.y);
         }
-        if (ImGui::BeginMenu(isEn ? "Data Structures (Veri Yapilari)" : "Veri Yapıları (Data Structures)")) {
+        if (ImGui::BeginMenu(isEn ? "Data Structures" : "Veri Yapilari")) {
             if (ImGui::MenuItem("std::vector (Dinamik Dizi)")) {
                 pm.AddNode(NodeKind::VectorOp, "std::vector", contextMenuPos.x, contextMenuPos.y);
             }
-            if (ImGui::MenuItem("std::list (Bağlı Liste)")) {
+            if (ImGui::MenuItem("std::list (Bagli Liste)")) {
                 pm.AddNode(NodeKind::ListOp, "std::list", contextMenuPos.x, contextMenuPos.y);
             }
-            if (ImGui::MenuItem("std::stack (Yığın - LIFO)")) {
+            if (ImGui::MenuItem("std::stack (Yigin - LIFO)")) {
                 pm.AddNode(NodeKind::StackOp, "std::stack", contextMenuPos.x, contextMenuPos.y);
             }
             if (ImGui::MenuItem("std::queue (Kuyruk - FIFO)")) {
                 pm.AddNode(NodeKind::QueueOp, "std::queue", contextMenuPos.x, contextMenuPos.y);
             }
-            if (ImGui::MenuItem("Sabit Dizi (std::array / Dizi)")) {
+            if (ImGui::MenuItem("Sabit Dizi (std::array / Array)")) {
                 pm.AddNode(NodeKind::ArrayOp, "Array (Dizi)", contextMenuPos.x, contextMenuPos.y);
             }
             ImGui::EndMenu();
         }
-        if (ImGui::MenuItem("Assign Value (Deger Ata)")) {
-            pm.AddNode(NodeKind::Assign, "Assign Value", contextMenuPos.x, contextMenuPos.y);
+        if (ImGui::MenuItem(isEn ? "Assign Value" : "Deger Ata")) {
+            pm.AddNode(NodeKind::Assign, isEn ? "Assign Value" : "Deger Ata", contextMenuPos.x, contextMenuPos.y);
         }
-        if (ImGui::MenuItem("Math Operation (Matematiksel Islem)")) {
-            pm.AddNode(NodeKind::MathOp, "Math Operation", contextMenuPos.x, contextMenuPos.y);
+        if (ImGui::MenuItem(isEn ? "Math Operation" : "Matematiksel Islem")) {
+            pm.AddNode(NodeKind::MathOp, isEn ? "Math Operation" : "Matematiksel Islem", contextMenuPos.x, contextMenuPos.y);
         }
-        if (ImGui::MenuItem("Print Output (cout)")) {
-            pm.AddNode(NodeKind::Print, "Print Output", contextMenuPos.x, contextMenuPos.y);
+        if (ImGui::MenuItem(isEn ? "Print Output (cout)" : "Ekrana Yazdir (cout)")) {
+            pm.AddNode(NodeKind::Print, isEn ? "Print Output" : "Ekrana Yazdir", contextMenuPos.x, contextMenuPos.y);
         }
-        if (ImGui::MenuItem("Input Read (cin)")) {
-            pm.AddNode(NodeKind::Input, "Input Read", contextMenuPos.x, contextMenuPos.y);
-        }
-        ImGui::Separator();
-        if (ImGui::MenuItem("Branch Condition (If/Else)")) {
-            pm.AddNode(NodeKind::BranchIf, "Branch (If/Else)", contextMenuPos.x, contextMenuPos.y);
-        }
-        if (ImGui::MenuItem("Switch Case")) {
-            pm.AddNode(NodeKind::SwitchCase, "Switch Case", contextMenuPos.x, contextMenuPos.y);
-        }
-        if (ImGui::MenuItem("While Loop")) {
-            pm.AddNode(NodeKind::LoopWhile, "While Loop", contextMenuPos.x, contextMenuPos.y);
-        }
-        if (ImGui::MenuItem("Do-While Loop")) {
-            pm.AddNode(NodeKind::LoopDoWhile, "Do-While Loop", contextMenuPos.x, contextMenuPos.y);
-        }
-        if (ImGui::MenuItem("For Loop")) {
-            pm.AddNode(NodeKind::LoopFor, "For Loop", contextMenuPos.x, contextMenuPos.y);
+        if (ImGui::MenuItem(isEn ? "Input Read (cin)" : "Klavyeden Girdi (cin)")) {
+            pm.AddNode(NodeKind::Input, isEn ? "Input Read" : "Klavyeden Girdi", contextMenuPos.x, contextMenuPos.y);
         }
         ImGui::Separator();
-        if (ImGui::MenuItem("Program Return (0)")) {
-            pm.AddNode(NodeKind::End, "Program Return (0)", contextMenuPos.x, contextMenuPos.y);
+        if (ImGui::MenuItem(isEn ? "Branch Condition (if/else)" : "Kosul / Karar (if/else)")) {
+            pm.AddNode(NodeKind::BranchIf, isEn ? "Branch (If/Else)" : "Kosul (If/Else)", contextMenuPos.x, contextMenuPos.y);
+        }
+        if (ImGui::MenuItem(isEn ? "Switch Case" : "Switch-Case Yapisi")) {
+            pm.AddNode(NodeKind::SwitchCase, isEn ? "Switch Case" : "Switch-Case", contextMenuPos.x, contextMenuPos.y);
+        }
+        if (ImGui::MenuItem(isEn ? "While Loop" : "While Dongusu")) {
+            pm.AddNode(NodeKind::LoopWhile, isEn ? "While Loop" : "While Dongusu", contextMenuPos.x, contextMenuPos.y);
+        }
+        if (ImGui::MenuItem(isEn ? "Do-While Loop" : "Do-While Dongusu")) {
+            pm.AddNode(NodeKind::LoopDoWhile, isEn ? "Do-While Loop" : "Do-While Dongusu", contextMenuPos.x, contextMenuPos.y);
+        }
+        if (ImGui::MenuItem(isEn ? "For Loop" : "For Dongusu")) {
+            pm.AddNode(NodeKind::LoopFor, isEn ? "For Loop" : "For Dongusu", contextMenuPos.x, contextMenuPos.y);
+        }
+        ImGui::Separator();
+        if (ImGui::MenuItem(isEn ? "Program End (return 0)" : "Yazilimin Sonlanisi (return 0)")) {
+            pm.AddNode(NodeKind::End, isEn ? "Program End (return 0)" : "Yazilimin Sonlanisi", contextMenuPos.x, contextMenuPos.y);
         }
 
         ImGui::EndPopup();
     }
 
     ImGui::EndChild();
+
+    // ── 5. CIFT TIK ILE ACILAN ORTALANMIS DUGUM DUZENLEME MODALI ──────────
+    if (modalEditingNodeId > 0) {
+        FlowNode* editNode = pm.GetNode(modalEditingNodeId);
+        if (editNode) {
+            ImGui::OpenPopup("NodeEditModal");
+            ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+            ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+            ImGui::SetNextWindowSize(ImVec2(620, 520), ImGuiCond_Appearing);
+
+            bool isOpen = true;
+            if (ImGui::BeginPopupModal("NodeEditModal", &isOpen, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize)) {
+                ImGui::TextColored(ImVec4(0, 0.85f, 1.0f, 1.0f), isEn ? "NODE EDITOR & INSPECTOR" : "DUGUM DUZENLEYICI VE AYARLARI");
+                ImGui::TextColored(ImVec4(0.5f, 0.55f, 0.65f, 1.0f), isEn ? "Configure expressions, variables, and logic." : "Dugum degerlerini, ifadeleri ve mantiksal akisi duzenleyin.");
+                ImGui::Separator();
+                ImGui::Spacing();
+
+                ImGui::BeginChild("ModalScrollArea", ImVec2(580, 350), true);
+                RenderInspectorPanel(pm, modalEditingNodeId);
+                ImGui::EndChild();
+
+                ImGui::Spacing();
+                ImGui::Separator();
+                ImGui::Spacing();
+
+                if (ImGui::Button(isEn ? "Save & Close" : "Kaydet ve Kapat", ImVec2(160, 36)) || ImGui::IsKeyPressed(ImGuiKey_Enter)) {
+                    modalEditingNodeId = -1;
+                    ImGui::CloseCurrentPopup();
+                }
+                ImGui::SameLine();
+                if (ImGui::Button(isEn ? "Delete Node" : "Dugumu Sil", ImVec2(120, 36))) {
+                    pm.DeleteNode(editNode->id);
+                    modalEditingNodeId = -1;
+                    ImGui::CloseCurrentPopup();
+                }
+                ImGui::SameLine();
+                if (ImGui::Button(isEn ? "Cancel (Esc)" : "Iptal (Esc)", ImVec2(100, 36)) || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+                    modalEditingNodeId = -1;
+                    ImGui::CloseCurrentPopup();
+                }
+
+                ImGui::EndPopup();
+            } else {
+                modalEditingNodeId = -1;
+            }
+        } else {
+            modalEditingNodeId = -1;
+        }
+    }
 }
 
 // ── 3. Data Structure Advisor Workspace ──────────────────────────────────
@@ -1953,47 +2062,98 @@ void ApplyAppTheme(AppTheme theme) {
     ImGuiStyle& style = ImGui::GetStyle();
     ImVec4* colors = style.Colors;
 
-    if (theme == AppTheme::OledDark) {
-        ImGui::StyleColorsDark();
-        colors[ImGuiCol_WindowBg]           = ImVec4(0.04f, 0.05f, 0.07f, 1.00f);
-        colors[ImGuiCol_Header]             = ImVec4(0.10f, 0.15f, 0.22f, 1.00f);
-        colors[ImGuiCol_HeaderHovered]      = ImVec4(0.00f, 0.60f, 0.85f, 0.70f);
-        colors[ImGuiCol_Button]             = ImVec4(0.12f, 0.16f, 0.24f, 1.00f);
-        colors[ImGuiCol_ButtonHovered]      = ImVec4(0.00f, 0.70f, 0.95f, 0.80f);
-        colors[ImGuiCol_ButtonActive]       = ImVec4(0.00f, 0.50f, 0.75f, 1.00f);
-        colors[ImGuiCol_FrameBg]            = ImVec4(0.08f, 0.10f, 0.15f, 1.00f);
-        colors[ImGuiCol_FrameBgHovered]     = ImVec4(0.15f, 0.20f, 0.28f, 1.00f);
-        colors[ImGuiCol_Tab]                = ImVec4(0.07f, 0.10f, 0.14f, 1.00f);
-        colors[ImGuiCol_TabHovered]         = ImVec4(0.00f, 0.70f, 0.95f, 0.80f);
-        colors[ImGuiCol_TabActive]          = ImVec4(0.00f, 0.55f, 0.80f, 1.00f);
-    } else if (theme == AppTheme::Dracula) {
-        ImGui::StyleColorsDark();
-        colors[ImGuiCol_WindowBg]           = ImVec4(0.16f, 0.16f, 0.21f, 1.00f);
-        colors[ImGuiCol_Header]             = ImVec4(0.38f, 0.31f, 0.55f, 1.00f);
-        colors[ImGuiCol_HeaderHovered]      = ImVec4(0.74f, 0.46f, 0.88f, 0.80f);
-        colors[ImGuiCol_Button]             = ImVec4(0.24f, 0.25f, 0.34f, 1.00f);
-        colors[ImGuiCol_ButtonHovered]      = ImVec4(0.55f, 0.45f, 0.75f, 1.00f);
-        colors[ImGuiCol_ButtonActive]       = ImVec4(0.40f, 0.30f, 0.60f, 1.00f);
-        colors[ImGuiCol_FrameBg]            = ImVec4(0.20f, 0.21f, 0.28f, 1.00f);
-        colors[ImGuiCol_Tab]                = ImVec4(0.18f, 0.19f, 0.25f, 1.00f);
-        colors[ImGuiCol_TabHovered]         = ImVec4(0.74f, 0.46f, 0.88f, 0.80f);
-        colors[ImGuiCol_TabActive]          = ImVec4(0.55f, 0.45f, 0.75f, 1.00f);
-    } else if (theme == AppTheme::Cyberpunk) {
-        ImGui::StyleColorsDark();
-        colors[ImGuiCol_WindowBg]           = ImVec4(0.05f, 0.02f, 0.09f, 1.00f);
-        colors[ImGuiCol_Header]             = ImVec4(0.85f, 0.00f, 0.55f, 0.70f);
-        colors[ImGuiCol_HeaderHovered]      = ImVec4(1.00f, 0.80f, 0.00f, 0.80f);
-        colors[ImGuiCol_Button]             = ImVec4(0.30f, 0.05f, 0.35f, 1.00f);
-        colors[ImGuiCol_ButtonHovered]      = ImVec4(0.95f, 0.10f, 0.55f, 1.00f);
-        colors[ImGuiCol_ButtonActive]       = ImVec4(1.00f, 0.85f, 0.00f, 1.00f);
-        colors[ImGuiCol_FrameBg]            = ImVec4(0.15f, 0.05f, 0.20f, 1.00f);
-        colors[ImGuiCol_Tab]                = ImVec4(0.18f, 0.05f, 0.22f, 1.00f);
-        colors[ImGuiCol_TabHovered]         = ImVec4(0.95f, 0.10f, 0.55f, 0.80f);
-        colors[ImGuiCol_TabActive]          = ImVec4(0.80f, 0.00f, 0.50f, 1.00f);
-    } else if (theme == AppTheme::ClassicDark) {
-        ImGui::StyleColorsDark();
-    } else if (theme == AppTheme::Light) {
+    style.WindowRounding    = 6.0f;
+    style.FrameRounding     = 5.0f;
+    style.PopupRounding     = 6.0f;
+    style.ScrollbarRounding = 9.0f;
+    style.GrabRounding      = 4.0f;
+    style.TabRounding       = 5.0f;
+    style.WindowBorderSize  = 1.0f;
+    style.FrameBorderSize   = 1.0f;
+    style.PopupBorderSize   = 1.0f;
+
+    if (theme == AppTheme::LightPastelNeon) {
         ImGui::StyleColorsLight();
+        
+        // Zeminler: Fildisi ve Berrak Arduvaz
+        colors[ImGuiCol_WindowBg]             = ImVec4(0.96f, 0.97f, 0.98f, 1.00f);
+        colors[ImGuiCol_ChildBg]              = ImVec4(0.93f, 0.95f, 0.97f, 1.00f);
+        colors[ImGuiCol_PopupBg]              = ImVec4(0.98f, 0.99f, 1.00f, 0.98f);
+        colors[ImGuiCol_Border]               = ImVec4(0.78f, 0.84f, 0.88f, 0.90f);
+        colors[ImGuiCol_BorderShadow]         = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+        
+        // Metinler: Koyu Arduvaz (Maksimum Netlik & Kontrast)
+        colors[ImGuiCol_Text]                 = ImVec4(0.06f, 0.09f, 0.16f, 1.00f);
+        colors[ImGuiCol_TextDisabled]         = ImVec4(0.45f, 0.52f, 0.60f, 1.00f);
+        
+        // Form & Girdi Alanlari
+        colors[ImGuiCol_FrameBg]              = ImVec4(0.88f, 0.92f, 0.95f, 1.00f);
+        colors[ImGuiCol_FrameBgHovered]       = ImVec4(0.82f, 0.88f, 0.92f, 1.00f);
+        colors[ImGuiCol_FrameBgActive]        = ImVec4(0.76f, 0.84f, 0.90f, 1.00f);
+        
+        // Basliklar (Petrol Yesili / Deep Teal #0f766e)
+        colors[ImGuiCol_TitleBg]              = ImVec4(0.06f, 0.46f, 0.43f, 1.00f);
+        colors[ImGuiCol_TitleBgActive]        = ImVec4(0.08f, 0.58f, 0.54f, 1.00f);
+        colors[ImGuiCol_TitleBgCollapsed]     = ImVec4(0.06f, 0.46f, 0.43f, 0.75f);
+        colors[ImGuiCol_MenuBarBg]            = ImVec4(0.92f, 0.94f, 0.96f, 1.00f);
+        
+        // Header
+        colors[ImGuiCol_Header]               = ImVec4(0.06f, 0.46f, 0.43f, 0.25f);
+        colors[ImGuiCol_HeaderHovered]        = ImVec4(0.06f, 0.46f, 0.43f, 0.45f);
+        colors[ImGuiCol_HeaderActive]         = ImVec4(0.06f, 0.46f, 0.43f, 0.65f);
+        
+        // Butonlar (Petrol Yesili)
+        colors[ImGuiCol_Button]               = ImVec4(0.06f, 0.46f, 0.43f, 0.85f);
+        colors[ImGuiCol_ButtonHovered]        = ImVec4(0.08f, 0.58f, 0.54f, 1.00f);
+        colors[ImGuiCol_ButtonActive]         = ImVec4(0.04f, 0.38f, 0.35f, 1.00f);
+        
+        // Sekmeler (Tabs): Pastel Petrol Yesili ve Mercan Pembe Neon
+        colors[ImGuiCol_Tab]                  = ImVec4(0.86f, 0.90f, 0.93f, 1.00f);
+        colors[ImGuiCol_TabHovered]           = ImVec4(0.96f, 0.35f, 0.48f, 0.60f);
+        colors[ImGuiCol_TabActive]            = ImVec4(0.96f, 0.25f, 0.37f, 1.00f); // Mercan Pembe Neon (#f43f5e)
+        colors[ImGuiCol_TabUnfocused]         = ImVec4(0.88f, 0.91f, 0.94f, 1.00f);
+        colors[ImGuiCol_TabUnfocusedActive]  = ImVec4(0.06f, 0.46f, 0.43f, 0.70f);
+        
+        // Kontroller
+        colors[ImGuiCol_ScrollbarBg]          = ImVec4(0.92f, 0.94f, 0.96f, 0.60f);
+        colors[ImGuiCol_ScrollbarGrab]        = ImVec4(0.70f, 0.76f, 0.82f, 1.00f);
+        colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.55f, 0.62f, 0.70f, 1.00f);
+        colors[ImGuiCol_ScrollbarGrabActive]  = ImVec4(0.40f, 0.48f, 0.56f, 1.00f);
+        colors[ImGuiCol_CheckMark]            = ImVec4(0.96f, 0.25f, 0.37f, 1.00f); // Mercan Pembe
+        colors[ImGuiCol_SliderGrab]           = ImVec4(0.06f, 0.46f, 0.43f, 1.00f);
+        colors[ImGuiCol_SliderGrabActive]     = ImVec4(0.96f, 0.25f, 0.37f, 1.00f);
+        colors[ImGuiCol_ModalWindowDimBg]     = ImVec4(0.10f, 0.15f, 0.20f, 0.45f);
+    } else { // DarkCyberNeon
+        ImGui::StyleColorsDark();
+        
+        colors[ImGuiCol_WindowBg]             = ImVec4(0.04f, 0.06f, 0.09f, 1.00f);
+        colors[ImGuiCol_ChildBg]              = ImVec4(0.06f, 0.08f, 0.12f, 1.00f);
+        colors[ImGuiCol_PopupBg]              = ImVec4(0.06f, 0.08f, 0.12f, 0.96f);
+        colors[ImGuiCol_Border]               = ImVec4(0.00f, 0.85f, 0.95f, 0.40f); // Turkuaz Neon
+        
+        colors[ImGuiCol_Text]                 = ImVec4(0.95f, 0.96f, 0.98f, 1.00f);
+        colors[ImGuiCol_TextDisabled]         = ImVec4(0.50f, 0.55f, 0.62f, 1.00f);
+        
+        colors[ImGuiCol_FrameBg]              = ImVec4(0.09f, 0.12f, 0.18f, 1.00f);
+        colors[ImGuiCol_FrameBgHovered]       = ImVec4(0.14f, 0.18f, 0.26f, 1.00f);
+        colors[ImGuiCol_FrameBgActive]        = ImVec4(0.18f, 0.24f, 0.34f, 1.00f);
+        
+        colors[ImGuiCol_TitleBg]              = ImVec4(0.05f, 0.08f, 0.14f, 1.00f);
+        colors[ImGuiCol_TitleBgActive]        = ImVec4(0.00f, 0.60f, 0.80f, 0.85f);
+        colors[ImGuiCol_MenuBarBg]            = ImVec4(0.06f, 0.08f, 0.12f, 1.00f);
+        
+        colors[ImGuiCol_Button]               = ImVec4(0.10f, 0.16f, 0.26f, 1.00f);
+        colors[ImGuiCol_ButtonHovered]        = ImVec4(0.00f, 0.85f, 0.95f, 0.70f);
+        colors[ImGuiCol_ButtonActive]         = ImVec4(0.95f, 0.15f, 0.55f, 0.80f);
+        
+        colors[ImGuiCol_Tab]                  = ImVec4(0.08f, 0.12f, 0.18f, 1.00f);
+        colors[ImGuiCol_TabHovered]           = ImVec4(0.95f, 0.15f, 0.55f, 0.65f);
+        colors[ImGuiCol_TabActive]            = ImVec4(0.95f, 0.15f, 0.55f, 1.00f); // Magenta Neon
+        
+        colors[ImGuiCol_CheckMark]            = ImVec4(0.00f, 0.95f, 0.85f, 1.00f);
+        colors[ImGuiCol_SliderGrab]           = ImVec4(0.00f, 0.85f, 0.95f, 1.00f);
+        colors[ImGuiCol_SliderGrabActive]     = ImVec4(0.95f, 0.15f, 0.55f, 1.00f);
+        colors[ImGuiCol_ModalWindowDimBg]     = ImVec4(0.00f, 0.00f, 0.00f, 0.65f);
     }
 }
 
@@ -2084,12 +2244,28 @@ void RenderSettingsWorkspace(ProjectManager& pm) {
 
     // 2. Tema Ayarı (Theme)
     ImGui::Text(isEn ? "2. Color Theme:" : "2. Arayüz Teması:");
-    const char* themeNames[] = { "OLED Siyah & Turkuaz", "Klasik Koyu (Classic Dark)", "Dracula (Mor & Lavanta)", "Cyberpunk (Neon Pembe)", "Açık Tema (Light Theme)" };
+    const char* themeNames[] = { 
+        isEn ? "Light Pastel Neon (Ivory, Teal & Pink)" : "Açık Pastel Neon (Petrol Yeşili & Pembe)", 
+        isEn ? "Dark Cyberpunk Neon (Obsidian, Cyan & Magenta)" : "Koyu Cyberpunk Neon (Siyah, Turkuaz & Magenta)" 
+    };
     int curTheme = (int)pm.currentTheme;
     if (ImGui::Combo("##theme", &curTheme, themeNames, IM_ARRAYSIZE(themeNames))) {
         pm.currentTheme = (AppTheme)curTheme;
         ApplyAppTheme(pm.currentTheme);
         pm.statusMessage = isEn ? "Theme updated." : "Tema güncellendi.";
+    }
+
+    ImGui::Spacing();
+    if (ImGui::Button(isEn ? "Açık Pastel Neon Temaya Geç (Varsayılan)" : "Açık Pastel Neon Temaya Geç (Varsayılan)", ImVec2(280, 32))) {
+        pm.currentTheme = AppTheme::LightPastelNeon;
+        ApplyAppTheme(pm.currentTheme);
+        pm.statusMessage = isEn ? "Switched to Light Pastel Neon theme." : "Açık Pastel Neon temaya geçildi.";
+    }
+    ImGui::SameLine();
+    if (ImGui::Button(isEn ? "Koyu Cyberpunk Neon Temaya Geç" : "Koyu Cyberpunk Neon Temaya Geç", ImVec2(280, 32))) {
+        pm.currentTheme = AppTheme::DarkCyberNeon;
+        ApplyAppTheme(pm.currentTheme);
+        pm.statusMessage = isEn ? "Switched to Dark Cyberpunk theme." : "Koyu Cyberpunk temaya geçildi.";
     }
 
     ImGui::Spacing();

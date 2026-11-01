@@ -1,0 +1,66 @@
+Öncelikle Sana Güzel Haberleri Getireyim. Hocam C-Algorithm Projemi Çok Beğendi Ve Yapay Zekayı Çok Doğru Kullandığımı Söyledi.
+Ona Asla Yalan Söylemedim Ve Kodun Tamamının Sana Ait Olduğunu Kurgusunun İse Bana Ait Olduğunu Söyledim Oda Kabul Etti Böyle Yapabilirsin ve tuzağa düşmemen için onu uyarmış onunda seni uyarmış olması çok iyi.
+dedi.
+
+C-Algorithm de yalnız çok kritik eksikler vardı ben anlatırken çok önemli bir yeri atlamışız.
+
+Oda İşlemler. Yani Toplama Çıkarma Bölme Çarpma Karekök gibi. Eğer Yapabilirsek İçine Faktoriyeli Alan Düğüm de eklemeyi öneririm.
+
+Yani Hocamın bana dediği daha doğrusu şuydu dediki tamam ekrana birşey yazdırabiliyoruz ama işlem yaptıramıyoruz.
+İşlem yaptırabilelim ki bir işe yarasın. Haftaya Salıya kadar bunu düzeltip yeniden getirirsin dedi ve anlaştık.
+
+İşlem yapılabilir hale getiricez ve Kütüphane entegrasyonunu konuşmamız gerekecek bundanda bahsetti. Hata Yönetim Sistemide fena olmazdı dedi.
+
+Hata yönetim sisteminden şu olabilir unreal engine deki gibi eğer bir mantık hatası varsa kodta o kaynaştığı düğümü kırmızı işaretlerdi error diye ve hatayı basardı.
+
+Belki bundada olabilir.
+Ama Seninle bunu konuşalım. Hepsini tahminimce bir anda yapmaya çalışırsak kafayı yeriz tuzağa düşerim.
+
+Şuan bu cümleyi kuruyorsam tuzağa düşmüyorum değilmi yani bana öğretmiştin ki aç gözlü birşekilde herşeye dalma altından kalkamazsın.
+Sanırım bu oydu. 
+Teker Teker Yapmak lazım ama öğrenerek ve akıllıca kararlar vererek. Kotamın aşılmaması için dikkat ederiz. Önce sağlam planlar atabiliriz.
+
+Sana daha önce yazdığım bazı notları veriyorum onlarada bakarsın ama beni suçlama bunları daha önce yazdım :
+
+
+
+
+
+
+
+
+
+
+
+/----
+1- Değer Yazdırma Eksik. Cout ile evet metinler yazıdırılabiliyor ama
+Araya bizim mutlaka << >> sıkıştırma özelliği eklememiz gerekli.
+
+2 tane cout kullansak bile opsiyon eklememiz gerekiyor özellikle aynı anda
+birden fazla şey yazdırmak istiyorsak daha kapsamlı olmasını istiyorsak
+Konsol Çıktı Tasarımcısını Geliştirmemiz Gerekir.
+
+ÖNCELİK = ORTA
+----/
+
+/----
+2- Switch-Case kullanırken ASLA AMA ASLA C/C++ içine
+String Koyamayız. Bunun için Bir uyarı sistemi koymalıyım.
+Eğer koyarsak içinde integral olmalıdır diye hata basacak.
+Unutmamalıyım İlk kez öğrendim.
+
+Belkide bunu hiç eklemeyiz. aceleside yok. Yinede tüm düğümler için
+hatanın tam olarak nerede patladığını aynı unreal engine deki gibi gösteren bir mekanizma fena olmazdı.
+
+ÖNCELİK = ORTA-DÜŞÜK
+----/
+
+/----
+3- Kütüphane desteği eklenecek. Belkide Eklentiler diye bir bölüm ayırırım.
+Ama Önceliği Çok Düşük.
+
+
+ÖNCELİK = ÇOK DÜŞÜK
+
+
+----/

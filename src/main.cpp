@@ -101,6 +101,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     ProjectManager pm;
     int selectedNodeId = 0;
+    ApplyAppTheme(pm.currentTheme);
 
     bool done = false;
     while (!done) {
@@ -147,10 +148,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 ImGui::EndMenuBar();
             }
 
-            float inspectorWidth = 320.0f;
-            ImVec2 mainAreaSize(ImGui::GetContentRegionAvail().x - inspectorWidth - 10.0f, ImGui::GetContentRegionAvail().y);
-
-            ImGui::BeginChild("WorkspacesContainer", mainAreaSize, false);
+            // Tam Genişlikte Çalışma Alanı (Sağ dar panel kaldırıldı, düğümlere çift tıklanarak düzenlenir)
+            ImGui::BeginChild("WorkspacesContainer", ImVec2(0, 0), false);
             if (ImGui::BeginTabBar("MainTabs", ImGuiTabBarFlags_None)) {
                 if (ImGui::BeginTabItem(isEn ? "Flow Graph Event Canvas" : "Akış Şeması Olay Grafiği")) {
                     RenderFlowGraphWorkspace(pm, selectedNodeId);
@@ -175,20 +174,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 ImGui::EndTabBar();
             }
             ImGui::EndChild();
-
-            ImGui::SameLine();
-
-            // Sağ Inspector Paneli
-            ImGui::BeginChild("InspectorContainer", ImVec2(inspectorWidth, 0), true);
-            RenderInspectorPanel(pm, selectedNodeId);
-            ImGui::EndChild();
         }
 
         ImGui::End();
 
-        // Render
+        // Render (Tema rengine duyarlı DirectX arka plan temizleme)
         ImGui::Render();
-        const float clear_color[4] = { 0.05f, 0.07f, 0.09f, 1.0f };
+        float clear_color[4] = { 0.95f, 0.96f, 0.98f, 1.0f };
+        if (pm.currentTheme == AppTheme::DarkCyberNeon) {
+            clear_color[0] = 0.05f; clear_color[1] = 0.07f; clear_color[2] = 0.09f; clear_color[3] = 1.0f;
+        }
         g_pd3dDeviceContext->OMSetRenderTargets(1, &g_mainRenderTargetView, nullptr);
         g_pd3dDeviceContext->ClearRenderTargetView(g_mainRenderTargetView, clear_color);
         ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());

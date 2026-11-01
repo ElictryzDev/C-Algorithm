@@ -10,11 +10,8 @@ enum class AppLanguage {
 };
 
 enum class AppTheme {
-    OledDark,
-    ClassicDark,
-    Dracula,
-    Cyberpunk,
-    Light
+    LightPastelNeon,    // Varsayilan: Acik Pastel Pembe & Petrol Yesili Luks Neon
+    DarkCyberNeon       // Koyu Cyberpunk Neon
 };
 
 class ProjectManager {
@@ -24,9 +21,9 @@ public:
     std::string projectFilePath = "";
     std::string statusMessage = "Lutfen baslamak icin bir proje olusturun veya acin.";
 
-    // Dil ve Tema Ayarlari
+    // Dil ve Tema Ayarlari (Varsayilan: Turkce + Acik Pastel Neon)
     AppLanguage currentLanguage = AppLanguage::Turkish;
-    AppTheme currentTheme = AppTheme::OledDark;
+    AppTheme currentTheme = AppTheme::LightPastelNeon;
     bool showGrid = true;
 
     // Akis ve Degisken Durumu

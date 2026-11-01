@@ -3,16 +3,16 @@ ADVISOR_DS=0
 ADVISOR_OP=0
 ADVISOR_COUNT=1000000
 [NODES]
-30|0|Event Software Start|-223.216|218.196|x|0|0|Merhaba C-Algorithm!|x < 10|int i = 0|i++
-37|1|Program Return (0)|1293.14|234.349|x|0|0|Merhaba C-Algorithm!|x < 10|int i = 0|i++
-41|2|Variable Declare|23.7622|240.302|can|0|100|Merhaba C-Algorithm!|x < 10|int i = 0|i++
+30|0|Event Software Start|88.4506|423.196|x|0|0|Merhaba C-Algorithm!|x < 10|int i = 0|i++
+37|1|Program Return (0)|1549.81|376.016|x|0|0|Merhaba C-Algorithm!|x < 10|int i = 0|i++
+41|2|Variable Declare|324.639|425.267|can|0|100|Merhaba C-Algorithm!|x < 10|int i = 0|i++
 MULTI_ASSIGN|41|sonuc|0|0|x|0|0
-44|17|Math (*)|756.606|237.166|x|0|0|Merhaba C-Algorithm!|x < 10|int i = 0|i++
-MATH_OP|44|sonuc|can|*|x
-45|4|Print Output|1039.94|242.95|sonuc|0|0|Toplanan X ve Can değişkenlerinin toplam değerleri: |x < 10|int i = 0|i++
+44|17|Math (+)|1021.61|350.499|x|0|0|Merhaba C-Algorithm!|x < 10|int i = 0|i++
+MATH_OP|44|sonuc|can|+|x
+45|4|Print Output|1304.94|372.95|sonuc|0|0|Toplanan X ve Can değişkenlerinin toplam değerleri: |x < 10|int i = 0|i++
 PRINT_MODE|45|0
-46|5|Input Read|521.882|235.627|x|0|0|Merhaba C-Algorithm!|x < 10|int i = 0|i++
-47|4|Print Output|280.706|233.569|x|0|0|Eklemek İstediğiniz Can Değerini Giriniz:|x < 10|int i = 0|i++
+46|5|Input Read|786.882|387.294|x|0|0|Merhaba C-Algorithm!|x < 10|int i = 0|i++
+47|4|Print Output|550.706|425.236|x|0|0|Eklemek İstediğiniz Can Değerini Giriniz:|x < 10|int i = 0|i++
 PRINT_MODE|47|0
 [WIRES]
 3|44|1|45|0
