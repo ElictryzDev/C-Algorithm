@@ -1,6 +1,6 @@
 // ========================================================
 // C-ALGORITHM ENGINE - OTOMATIK DERLENEBILIR C++ KODU
-// Proje: Algoritma_Test_01
+// Proje: Test Alanı
 // ========================================================
 
 #include <iostream>
@@ -20,26 +20,30 @@ int main() {
     SetConsoleOutputCP(65001);
     SetConsoleCP(65001);
 
-    std::cout << "=== Algoritma_Test_01 CALISIYOR ===" << std::endl;
+    std::cout << "=== Test Alanı CALISIYOR ===" << std::endl;
 
     // Degisken Tanimlama (can)
     int can = 100;
     std::cout << "[LOG] can = " << can << std::endl;
 
-    int sonuc = 0;
-    int x = 0;
+    int eklenecek_can = 0;
+    int güncel_can_degeri = 0;
     // Ekrana Cikti Basma
-    std::cout << "Eklemek İstediğiniz Can Değerini Giriniz:" << std::endl;
+    std::cout << "Sistem Aktif! Mevcut Can: 100" << std::endl;
 
-    // Kullanicidan Girdi Alma (std::cin >> x)
-    std::cin >> x;
+    // For Dongusu
+    for (int i = 0; i < 10; i++) {
+        // Kullanicidan Girdi Alma (std::cin >> eklenecek_can)
+        std::cin >> eklenecek_can;
 
-    // Matematiksel Islem: sonuc
-    sonuc = can * x;
-    std::cout << "[ISLEM] sonuc = " << +can << " * " << +x << " -> " << +sonuc << std::endl;
+        // Matematiksel Islem: güncel_can_degeri
+        güncel_can_degeri = can + eklenecek_can;
+        std::cout << "[ISLEM] güncel_can_degeri = " << +can << " + " << +eklenecek_can << " -> " << +güncel_can_degeri << std::endl;
 
-    // Ekrana Cikti Basma
-    std::cout << "Toplanan X ve Can değişkenlerinin toplam değerleri: " << std::endl;
+        // Ekrana Cikti Basma
+        std::cout << "Merhaba C-Algorithm!" << std::endl;
+
+    }
 
     std::cout << "=== PROGRAM TAMAMLANDI ===" << std::endl;
     return 0;

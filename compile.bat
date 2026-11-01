@@ -9,5 +9,5 @@ cl.exe /nologo /std:c++17 /O2 /MD /EHsc /utf-8 ^
     src\vendor\imgui\imgui_tables.cpp src\vendor\imgui\imgui_widgets.cpp ^
     src\vendor\imgui\backends\imgui_impl_win32.cpp ^
     src\vendor\imgui\backends\imgui_impl_dx11.cpp ^
-    d3d11.lib d3dcompiler.lib dxgi.lib user32.lib gdi32.lib ^
+    d3d11.lib d3dcompiler.lib dxgi.lib user32.lib gdi32.lib shell32.lib ^
     /Fe:C-Algorithm.exe

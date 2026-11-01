@@ -1,0 +1,27 @@
+PROJECT_NAME=Test Alanı
+ADVISOR_DS=0
+ADVISOR_OP=1
+ADVISOR_COUNT=10000
+[NODES]
+1|0|Yazilimin Baslangici|-5|33|x|0|0|Merhaba C-Algorithm!|x < 10|int i = 0|i++
+2|2|Degisken: can_puani|207|19|can|0|100|Merhaba C-Algorithm!|x < 10|int i = 0|i++
+MULTI_ASSIGN|2|eklenecek_can|0|0|güncel_can_degeri|0|0
+3|4|Ekrana Yazdir|455|21|x|0|0|Sistem Aktif! Mevcut Can: 100|x < 10|int i = 0|i++
+PRINT_MODE|3|0
+4|1|Yazilimin Sonlanisi|986|456|x|0|0|Merhaba C-Algorithm!|x < 10|int i = 0|i++
+5|9|For Döngüsü|710|17|x|0|0|Merhaba C-Algorithm!|x < 10|int i = 0|i++
+6|4|Konsola Yazdır|661|435|x|0|0|Merhaba C-Algorithm!|x < 10|int i = 0|i++
+PRINT_MODE|6|0
+7|5|Klavyeden Girdi|993|15|eklenecek_can|0|0|Merhaba C-Algorithm!|x < 10|int i = 0|i++
+8|17|Matematiksel İşlem|1270|15|x|0|0|Merhaba C-Algorithm!|x < 10|int i = 0|i++
+MATH_OP|8|güncel_can_degeri|can|+|eklenecek_can
+[WIRES]
+1|1732436448|0|2|0
+2|2|1|3|0
+4|1|0|2|0
+4|3|1|5|0
+5|5|2|6|0
+6|5|1|7|0
+7|7|1|8|0
+8|8|1|6|0
+9|6|1|4|0

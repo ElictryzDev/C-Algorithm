@@ -82,6 +82,7 @@ enum class NodeKind {
     LoopWhile,          // While Dongusu
     LoopDoWhile,        // Do-While Dongusu
     LoopFor,            // For Dongusu
+    LoopEnd,            // Döngü Sonu (Flowchart standardı kapanış bloğu)
     SwitchCase,         // Switch-Case Coklu Karar Yapisi
     StructDef,          // Struct Tanimlama Blogu
     VectorOp,           // std::vector Islemleri (push_back, pop_back vb.)
@@ -156,7 +157,7 @@ struct FlowNode {
     std::string mathRight = "b";
 
     // Kosul ve Dongu Ayarlari
-    std::string conditionExpr = "x < 10";  // If / While / Do-While / For kosulu
+    std::string conditionExpr = "i < 10";  // If / While / Do-While / For kosulu
     std::string loopInit = "int i = 0";    // For baslangic
     std::string loopStep = "i++";          // For artis
     // While / DoWhile govde ek satirlari (sayac++, x *= 2, vb.)

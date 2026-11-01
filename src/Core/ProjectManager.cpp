@@ -93,9 +93,18 @@ FlowNode* ProjectManager::AddNode(NodeKind kind, const std::string& title, float
         case NodeKind::LoopFor:
             node.width = 240.0f;
             node.height = 100.0f;
+            node.conditionExpr = "i < 10";
+            node.loopInit = "int i = 0";
+            node.loopStep = "i++";
             node.pins.push_back({ 0, "Giris", PinType::ExecIn, PinShape::Triangle, 14.0f, node.height * 0.5f });
-            node.pins.push_back({ 1, "Govde (Body)", PinType::ExecOut, PinShape::Triangle, node.width - 14.0f, node.height * 0.35f });
-            node.pins.push_back({ 2, "Bitti (Exit)", PinType::ExecOut, PinShape::Triangle, node.width - 14.0f, node.height * 0.75f });
+            node.pins.push_back({ 1, "Govde (Body)", PinType::ExecOut, PinShape::Triangle, node.width - 14.0f, node.height * 0.5f });
+            break;
+        case NodeKind::LoopEnd:
+            node.width = 190.0f;
+            node.height = 65.0f;
+            node.title = (currentLanguage == AppLanguage::English) ? "Loop End" : "Döngü Sonu";
+            node.pins.push_back({ 0, "Giris", PinType::ExecIn, PinShape::Triangle, 14.0f, node.height * 0.5f });
+            node.pins.push_back({ 1, "Cikis", PinType::ExecOut, PinShape::Triangle, node.width - 14.0f, node.height * 0.5f });
             break;
         case NodeKind::Input:
             node.width = 230.0f;
@@ -791,7 +800,11 @@ std::string ProjectManager::GenerateCppCode() {
             else if (n->kind == NodeKind::Input) {
                 std::string inVar = !n->targetVar.empty() ? n->targetVar : "inputVal";
                 ss << tabs << "// Kullanicidan Girdi Alma (std::cin >> " << inVar << ")\n";
-                ss << tabs << "std::cin >> " << inVar << ";\n\n";
+                ss << tabs << "if (!(std::cin >> " << inVar << ")) {\n";
+                ss << tabs << "    std::cin.clear();\n";
+                ss << tabs << "    std::string _err_dump;\n";
+                ss << tabs << "    std::cin >> _err_dump;\n";
+                ss << tabs << "}\n\n";
                 curr = getTargetNode(curr, 1);
             }
             else if (n->kind == NodeKind::MathOp) {
@@ -841,7 +854,21 @@ std::string ProjectManager::GenerateCppCode() {
                         ss << tabs << "    " << stmt << ";\n";
                 }
                 ss << tabs << "}\n\n";
-                curr = getTargetNode(curr, 2); // Dongu bitince completed pininden devam
+                
+                int nextNode = -1;
+                int trace = bodyNode;
+                std::set<int> visitedTrace;
+                while (trace > 0 && visitedTrace.count(trace) == 0) {
+                    visitedTrace.insert(trace);
+                    FlowNode* tn = GetNode(trace);
+                    if (tn && tn->kind == NodeKind::LoopEnd) {
+                        nextNode = getTargetNode(trace, 1);
+                        break;
+                    }
+                    trace = getTargetNode(trace, 1);
+                }
+                if (nextNode <= 0) nextNode = getTargetNode(curr, 2);
+                curr = nextNode;
             }
             else if (n->kind == NodeKind::LoopDoWhile) {
                 ss << tabs << "// Do-While Dongusu\n";
@@ -854,7 +881,21 @@ std::string ProjectManager::GenerateCppCode() {
                         ss << tabs << "    " << stmt << ";\n";
                 }
                 ss << tabs << "} while (" << n->conditionExpr << ");\n\n";
-                curr = getTargetNode(curr, 2); // Dongu bitince completed pininden devam
+                
+                int nextNode = -1;
+                int trace = bodyNode;
+                std::set<int> visitedTrace;
+                while (trace > 0 && visitedTrace.count(trace) == 0) {
+                    visitedTrace.insert(trace);
+                    FlowNode* tn = GetNode(trace);
+                    if (tn && tn->kind == NodeKind::LoopEnd) {
+                        nextNode = getTargetNode(trace, 1);
+                        break;
+                    }
+                    trace = getTargetNode(trace, 1);
+                }
+                if (nextNode <= 0) nextNode = getTargetNode(curr, 2);
+                curr = nextNode;
             }
             else if (n->kind == NodeKind::LoopFor) {
                 ss << tabs << "// For Dongusu\n";
@@ -862,7 +903,25 @@ std::string ProjectManager::GenerateCppCode() {
                 int bodyNode = getTargetNode(curr, 1);
                 if (bodyNode > 0) generateChain(bodyNode, indent + 1);
                 ss << tabs << "}\n\n";
-                curr = getTargetNode(curr, 2); // Dongu bitince completed pininden devam
+                
+                int nextNode = -1;
+                int trace = bodyNode;
+                std::set<int> visitedTrace;
+                while (trace > 0 && visitedTrace.count(trace) == 0) {
+                    visitedTrace.insert(trace);
+                    FlowNode* tn = GetNode(trace);
+                    if (tn && tn->kind == NodeKind::LoopEnd) {
+                        nextNode = getTargetNode(trace, 1);
+                        break;
+                    }
+                    trace = getTargetNode(trace, 1);
+                }
+                if (nextNode <= 0) nextNode = getTargetNode(curr, 2);
+                curr = nextNode;
+            }
+            else if (n->kind == NodeKind::LoopEnd) {
+                // Döngü Sonu Şeması: Döngünün iç zincirini burada sonlandırır (süslü parantez kapanır)
+                break;
             }
             else if (n->kind == NodeKind::SwitchCase) {
                 ss << tabs << "// Switch-Case Coklu Karar Yapisi\n";

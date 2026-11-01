@@ -1,5 +1,6 @@
 #include "Workspaces.hpp"
 #include <windows.h>
+#include <shellapi.h>
 #include <cmath>
 #include <sstream>
 #include <cstdio>
@@ -108,6 +109,7 @@ inline FlowchartShape GetFlowchartShape(NodeKind kind) {
     switch (kind) {
         case NodeKind::Start:
         case NodeKind::End:
+        case NodeKind::LoopEnd:
             return FlowchartShape::Pill;
         case NodeKind::BranchIf:
             return FlowchartShape::Diamond;
@@ -140,6 +142,13 @@ inline void SyncNodeGeometryAndPins(FlowNode& node) {
                 node.pins[0].relY = node.height * 0.5f;
             }
             break;
+        case NodeKind::LoopEnd:
+            node.width = 190.0f; node.height = 65.0f;
+            if (node.pins.size() >= 2) {
+                node.pins[0].relX = 14.0f;           node.pins[0].relY = node.height * 0.5f;
+                node.pins[1].relX = node.width - 14.0f; node.pins[1].relY = node.height * 0.5f;
+            }
+            break;
         case NodeKind::BranchIf:
             node.width = 240.0f; node.height = 110.0f;
             if (node.pins.size() >= 3) {
@@ -166,10 +175,9 @@ inline void SyncNodeGeometryAndPins(FlowNode& node) {
         case NodeKind::LoopDoWhile:
         case NodeKind::LoopFor:
             node.width = 240.0f; node.height = 100.0f;
-            if (node.pins.size() >= 3) {
+            if (node.pins.size() >= 2) {
                 node.pins[0].relX = 14.0f;           node.pins[0].relY = node.height * 0.5f;
-                node.pins[1].relX = node.width - 14.0f; node.pins[1].relY = node.height * 0.35f;
-                node.pins[2].relX = node.width - 14.0f; node.pins[2].relY = node.height * 0.75f;
+                node.pins[1].relX = node.width - 14.0f; node.pins[1].relY = node.height * 0.5f;
             }
             break;
         case NodeKind::VariableDeclare:
@@ -265,6 +273,8 @@ inline NodeColorTheme GetNodeTheme(NodeKind kind, AppTheme theme, bool isEn) {
                 return { IM_COL32(253, 242, 248, 252), IM_COL32(244, 63, 94, 255), IM_COL32(244, 63, 94, 40), txtCol, isEn ? "Do-While Loop" : "Do-While Döngüsü" };
             case NodeKind::LoopFor:
                 return { IM_COL32(253, 242, 248, 252), IM_COL32(244, 63, 94, 255), IM_COL32(244, 63, 94, 40), txtCol, isEn ? "For Loop" : "For Döngüsü" };
+            case NodeKind::LoopEnd:
+                return { IM_COL32(254, 243, 199, 252), IM_COL32(217, 119, 6, 255), IM_COL32(217, 119, 6, 40), txtCol, isEn ? "Loop End" : "Döngü Sonu" };
             case NodeKind::SwitchCase:
                 return { IM_COL32(254, 243, 199, 252), IM_COL32(217, 119, 6, 255), IM_COL32(217, 119, 6, 40), txtCol, isEn ? "Switch-Case" : "Çoklu Seçim (switch)" };
             case NodeKind::StructDef:
@@ -298,6 +308,8 @@ inline NodeColorTheme GetNodeTheme(NodeKind kind, AppTheme theme, bool isEn) {
                 return { IM_COL32(38, 14, 24, 240), IM_COL32(244, 63, 94, 255), IM_COL32(244, 63, 94, 50), txtCol, isEn ? "Do-While Loop" : "Do-While Döngüsü" };
             case NodeKind::LoopFor:
                 return { IM_COL32(38, 14, 24, 240), IM_COL32(244, 63, 94, 255), IM_COL32(244, 63, 94, 50), txtCol, isEn ? "For Loop" : "For Döngüsü" };
+            case NodeKind::LoopEnd:
+                return { IM_COL32(38, 26, 10, 240), IM_COL32(245, 158, 11, 255), IM_COL32(245, 158, 11, 50), txtCol, isEn ? "Loop End" : "Döngü Sonu" };
             case NodeKind::SwitchCase:
                 return { IM_COL32(32, 24, 14, 240), IM_COL32(217, 119, 6, 255), IM_COL32(217, 119, 6, 50), txtCol, isEn ? "Switch-Case" : "Çoklu Seçim (switch)" };
             case NodeKind::StructDef:
@@ -311,6 +323,7 @@ inline NodeColorTheme GetNodeTheme(NodeKind kind, AppTheme theme, bool isEn) {
 inline std::string GetNodeLocalizedTitle(const FlowNode& n, bool isEn) {
     if (n.kind == NodeKind::Start) return isEn ? "Program Start" : "Yazılımın Başlangıcı";
     if (n.kind == NodeKind::End) return isEn ? "Program End (return 0)" : "Yazılımın Sonlanışı";
+    if (n.kind == NodeKind::LoopEnd) return isEn ? "Loop End" : "Döngü Sonu";
     return n.title;
 }
 
@@ -320,6 +333,8 @@ inline std::string FormatNodeLiveContent(const FlowNode& n) {
             return "int main() { ... }";
         case NodeKind::End:
             return "return 0;";
+        case NodeKind::LoopEnd:
+            return "}";
         case NodeKind::VariableDeclare: {
             if (!n.multiAssignments.empty()) {
                 std::string s;
@@ -525,6 +540,10 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
     if (ImGui::Button("For")) {
         pm.AddNode(NodeKind::LoopFor, isEn ? "For Loop" : "For Döngüsü", 560, 300);
     }
+    ImGui::SameLine();
+    if (ImGui::Button(isEn ? "+ Loop End" : "+ Döngü Sonu")) {
+        pm.AddNode(NodeKind::LoopEnd, isEn ? "Loop End" : "Döngü Sonu", 600, 320);
+    }
     ImGui::SameLine(0, 12);
     if (ImGui::Button(isEn ? "Reset View (100%)" : "Kamerayı Sıfırla (%100)")) {
         g_flowPanOffset = { 0.0f, 0.0f };
@@ -544,7 +563,7 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
     ImVec2 size = ImGui::GetContentRegionAvail();
 
     bool isLight = (pm.currentTheme == AppTheme::LightPastelNeon);
-    ImU32 canvasBgCol = isLight ? IM_COL32(245, 247, 250, 255) : IM_COL32(14, 18, 24, 255);
+    ImU32 canvasBgCol = isLight ? IM_COL32(247, 245, 250, 255) : IM_COL32(14, 18, 24, 255);
     drawList->AddRectFilled(screenOrigin, ImVec2(screenOrigin.x + size.x, screenOrigin.y + size.y), canvasBgCol);
 
     bool isCanvasHovered = ImGui::IsWindowHovered();
@@ -573,7 +592,7 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
 
     // 3. Sonsuz Izgara Cizimi (Sifir Ek Bellek Maliyetli Modulo Geometrisi)
     if (pm.showGrid) {
-        ImU32 gridCol = isLight ? IM_COL32(220, 226, 235, 255) : IM_COL32(35, 40, 50, 255);
+        ImU32 gridCol = isLight ? IM_COL32(228, 220, 242, 255) : IM_COL32(35, 40, 50, 255);
         float gridSize = 32.0f * g_flowZoomLevel;
         float startX = fmodf(g_flowPanOffset.x, gridSize);
         if (startX < 0.0f) startX += gridSize;
@@ -791,7 +810,7 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
             ImVec2 szExpr = ImGui::CalcTextSize(liveExpr.c_str());
             drawList->AddText(ImVec2(pCenter.x - szExpr.x * 0.5f, pCenter.y + 2.0f), theme.neonCol, liveExpr.c_str());
         } else if (shape == FlowchartShape::Hexagon) {
-            // Döngüler (While, Do-While, For): Başlık, Canlı Koşul ve 2 Çıkış Pini İpuçları!
+            // Döngüler (While, Do-While, For): Başlık, Canlı Koşul ve Tek Çıkış Pini (Gövde)
             float titleY = pMin.y + 7.0f * g_flowZoomLevel;
             float textIndent = 24.0f * g_flowZoomLevel;
 
@@ -800,11 +819,9 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
             float bodyY = pCenter.y - 4.0f * g_flowZoomLevel;
             drawList->AddText(ImVec2(pMin.x + textIndent, bodyY), theme.textCol, liveExpr.c_str());
 
-            // Döngünün 2 Çıkış Noktası Açıklaması (İki Nokta Gizeminin Çözümü!)
-            drawList->AddText(ImVec2(pMax.x - 95.0f * g_flowZoomLevel, pMin.y + n.height * 0.35f * g_flowZoomLevel - 8.0f * g_flowZoomLevel), 
-                              IM_COL32(244, 63, 94, 255), isEn ? "Loop Body" : "Döngü İçi");
-            drawList->AddText(ImVec2(pMax.x - 95.0f * g_flowZoomLevel, pMin.y + n.height * 0.75f * g_flowZoomLevel - 8.0f * g_flowZoomLevel), 
-                              IM_COL32(13, 148, 136, 255), isEn ? "Loop Exit" : "Döngü Sonu");
+            // Gövde çıkış etiketi
+            drawList->AddText(ImVec2(pMax.x - 70.0f * g_flowZoomLevel, pCenter.y - 8.0f * g_flowZoomLevel), 
+                              IM_COL32(244, 63, 94, 255), isEn ? "Body" : "Gövde");
         } else {
             // Parallelogram, Rectangle
             float titleY = pMin.y + 6.0f * g_flowZoomLevel;
@@ -1022,6 +1039,9 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
         }
         if (ImGui::MenuItem(isEn ? "For Loop" : "For Döngüsü")) {
             pm.AddNode(NodeKind::LoopFor, isEn ? "For Loop" : "For Döngüsü", contextMenuPos.x, contextMenuPos.y);
+        }
+        if (ImGui::MenuItem(isEn ? "Loop End" : "Döngü Sonu")) {
+            pm.AddNode(NodeKind::LoopEnd, isEn ? "Loop End" : "Döngü Sonu", contextMenuPos.x, contextMenuPos.y);
         }
         ImGui::Separator();
         if (ImGui::MenuItem(isEn ? "Program End (return 0)" : "Yazılımın Sonlanışı (return 0)")) {
@@ -1850,6 +1870,11 @@ void RenderInspectorPanel(ProjectManager& pm, int& selectedNodeId) {
                 if (ImGui::InputText(isEn ? "Step" : "Artış (Step)", stepBuf, sizeof(stepBuf))) {
                     n->loopStep = stepBuf;
                 }
+            } else if (n->kind == NodeKind::LoopEnd) {
+                ImGui::TextColored(ImVec4(0.0f, 0.85f, 1.0f, 1.0f), isEn ? "Loop End Schema (}):" : "Döngü Sonu Şeması (}):");
+                ImGui::TextWrapped(isEn 
+                    ? "Marks the boundary of the loop body. All schemas executed repeatedly must terminate into this node. The right output pin continues the program flow outside the loop." 
+                    : "Döngü gövdesinin bittiği sınırı işaretler ('}' karakteri). Döngü içinde tekrarlanacak tüm şemalar bu şemaya bağlanır; bu şemanın sağ çıkış pini ise döngü dışındaki akıştan devam eder.");
             } else if (n->kind == NodeKind::SwitchCase) {
                 char swBuf[64];
                 strncpy(swBuf, n->switchVar.c_str(), sizeof(swBuf));
@@ -2342,10 +2367,38 @@ void RenderSettingsWorkspace(ProjectManager& pm) {
     ImGui::Separator();
     ImGui::Spacing();
 
-    // 4. Lisans ve Fikri Mulkiyet Bilgisi
-    ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "🛡️ Lisans ve Gelistirici Bilgisi:");
-    ImGui::BulletText("Gelistirici: Mustafa Can Yilmazer (ElictryzDev)");
-    ImGui::BulletText("Kurum: Istanbul Beykent Universitesi - Bilgisayar Programciligi");
-    ImGui::BulletText("Lisans: Proprietary EULA (Tum Haklari Saklidir)");
-    ImGui::BulletText("Cikti Kodu: Ticari projelerde 'C-Algorithm' atfi ile kullanilabilir.");
+    // 4. Lisans ve Fikri Mülkiyet (Açık Kaynak Apache 2.0)
+    ImGui::TextColored(ImVec4(0.05f, 0.85f, 0.55f, 1.0f), isEn ? "🛡️ Open Source License & Architecture:" : "🛡️ Açık Kaynak Lisansı ve Mimari:");
+    ImGui::BulletText(isEn ? "Lead Developer: Mustafa Can Yılmazer (@ElictryzDev)" : "Baş Geliştirici: Mustafa Can Yılmazer (@ElictryzDev)");
+    ImGui::BulletText(isEn ? "Institution: Istanbul Beykent University - Computer Programming" : "Kurum: İstanbul Beykent Üniversitesi - Bilgisayar Programcılığı");
+    ImGui::BulletText(isEn ? "License: Apache License 2.0 (Permissive with Patent Grant & Retaliation Clause)" : "Lisans: Apache License 2.0 (Geniş İzinli, Patent Korumalı ve Atıf Zorunlu)");
+    ImGui::BulletText(isEn ? "Freedom: You can freely inspect, modify, fork, and distribute this software." : "Özgürlük: Yazılımı inceleyebilir, değiştirebilir, çatallayabilir ve ticari projelerde dahi kullanabilirsiniz.");
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // 5. Destek & Sponsorluk (Buy Me a Coffee / GitHub Sponsors)
+    ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.2f, 1.0f), isEn ? "☕ Support the Developer / Community Sponsorship:" : "☕ Geliştiriciye Destek Ol / Topluluk Sponsorluğu:");
+    ImGui::TextWrapped(isEn 
+        ? "C-Algorithm is an independent, community-driven open source initiative for computer science education. Support further development via Buy Me a Coffee or GitHub Sponsors!" 
+        : "C-Algorithm, bilgisayar programcılığı ve algoritma eğitimi için geliştirilen bağımsız bir açık kaynak projesidir. Geliştirmeyi desteklemek için bağış yapabilir veya sponsor olabilirsiniz!");
+
+    ImGui::Spacing();
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.95f, 0.45f, 0.15f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.55f, 0.25f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.85f, 0.35f, 0.10f, 1.0f));
+    if (ImGui::Button(isEn ? "☕ Buy Me a Coffee / Sponsor Developer" : "☕ Geliştiriciye Bir Kahve Ismarla (Buy Me a Coffee)", ImVec2(340, 38))) {
+        ShellExecuteA(nullptr, "open", "https://buymeacoffee.com/electryzdev", nullptr, nullptr, SW_SHOWNORMAL);
+    }
+    ImGui::PopStyleColor(3);
+
+    ImGui::SameLine();
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.15f, 0.55f, 0.85f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.25f, 0.65f, 0.95f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.10f, 0.45f, 0.75f, 1.0f));
+    if (ImGui::Button(isEn ? "GitHub Repository & Issues" : "GitHub Deposu ve Hata Bildirimi", ImVec2(240, 38))) {
+        ShellExecuteA(nullptr, "open", "https://github.com/ElictryzDev/C-Algorithm", nullptr, nullptr, SW_SHOWNORMAL);
+    }
+    ImGui::PopStyleColor(3);
 }
