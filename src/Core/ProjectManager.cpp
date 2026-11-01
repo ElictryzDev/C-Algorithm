@@ -37,22 +37,22 @@ void ProjectManager::SetupDefaultFlow() {
     bool isEn = (currentLanguage == AppLanguage::English);
 
     // 1. Program Baslangici (main())
-    FlowNode* nStart = AddNode(NodeKind::Start, isEn ? "Program Start" : "Yazilimin Baslangici", 60.0f, 100.0f);
+    FlowNode* nStart = AddNode(NodeKind::Start, isEn ? "Program Start" : "Yazılımın Başlangıcı", 60.0f, 100.0f);
 
     // 2. Degisken Tanimla (uint8_t can_puani = 100)
-    FlowNode* nVar = AddNode(NodeKind::VariableDeclare, isEn ? "Variable: can_puani" : "Degisken: can_puani", 340.0f, 100.0f);
+    FlowNode* nVar = AddNode(NodeKind::VariableDeclare, isEn ? "Variable: can_puani" : "Değişken: can_puani", 340.0f, 100.0f);
     nVar->targetVar = "can_puani";
     nVar->varType = TypeKind::UInt8;
     nVar->expr = "100";
 
     // 3. Ekrana Yaz (std::cout)
-    FlowNode* nPrint = AddNode(NodeKind::Print, isEn ? "Print Output" : "Ekrana Yazdir", 620.0f, 100.0f);
+    FlowNode* nPrint = AddNode(NodeKind::Print, isEn ? "Print Output" : "Konsola Yazdır", 620.0f, 100.0f);
     nPrint->ioText = isEn ? "System Online! Current Health: 100" : "Sistem Aktif! Mevcut Can: 100";
 
     // 4. Program Sonu
-    FlowNode* nEnd = AddNode(NodeKind::End, isEn ? "Program End (return 0)" : "Yazilimin Sonlanisi", 900.0f, 100.0f);
+    FlowNode* nEnd = AddNode(NodeKind::End, isEn ? "Program End (return 0)" : "Yazılımın Sonlanışı", 900.0f, 100.0f);
 
-    // Düğümleri Birbirine Bağla
+    // Şemaları Birbirine Bağla
     ConnectPins(nStart->id, 0, nVar->id, 0);
     ConnectPins(nVar->id, 1, nPrint->id, 0);
     ConnectPins(nPrint->id, 1, nEnd->id, 0);
