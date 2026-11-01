@@ -21,9 +21,9 @@ public:
     std::string projectFilePath = "";
     std::string statusMessage = "Lutfen baslamak icin bir proje olusturun veya acin.";
 
-    // Dil ve Tema Ayarlari (Varsayilan: Turkce + Acik Pastel Neon)
+    // Dil ve Tema Ayarlari (Varsayilan: Turkce + Koyu Neon Mor "Amethyst Night")
     AppLanguage currentLanguage = AppLanguage::Turkish;
-    AppTheme currentTheme = AppTheme::LightPastelNeon;
+    AppTheme currentTheme = AppTheme::DarkCyberNeon;
     bool showGrid = true;
 
     // Akis ve Degisken Durumu

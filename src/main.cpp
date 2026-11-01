@@ -137,9 +137,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
         // Render (Tema rengine duyarlı DirectX arka plan temizleme)
         ImGui::Render();
-        float clear_color[4] = { 0.95f, 0.96f, 0.98f, 1.0f };
-        if (pm.currentTheme == AppTheme::DarkCyberNeon) {
-            clear_color[0] = 0.05f; clear_color[1] = 0.07f; clear_color[2] = 0.09f; clear_color[3] = 1.0f;
+        // Varsayılan = Koyu Neon Mor (Amethyst Night)
+        float clear_color[4] = { 0.09f, 0.04f, 0.17f, 1.0f };
+        if (pm.currentTheme == AppTheme::LightPastelNeon) {
+            clear_color[0] = 0.97f; clear_color[1] = 0.96f; clear_color[2] = 0.99f; clear_color[3] = 1.0f;
         }
         g_pd3dDeviceContext->OMSetRenderTargets(1, &g_mainRenderTargetView, nullptr);
         g_pd3dDeviceContext->ClearRenderTargetView(g_mainRenderTargetView, clear_color);

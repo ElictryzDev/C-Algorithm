@@ -563,7 +563,8 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
     ImVec2 size = ImGui::GetContentRegionAvail();
 
     bool isLight = (pm.currentTheme == AppTheme::LightPastelNeon);
-    ImU32 canvasBgCol = isLight ? IM_COL32(247, 245, 250, 255) : IM_COL32(14, 18, 24, 255);
+    // Açık tema: şampanya-lavanta | Koyu tema: derin neon mor (Amethyst Night)
+    ImU32 canvasBgCol = isLight ? IM_COL32(247, 245, 250, 255) : IM_COL32(22, 10, 44, 255);
     drawList->AddRectFilled(screenOrigin, ImVec2(screenOrigin.x + size.x, screenOrigin.y + size.y), canvasBgCol);
 
     bool isCanvasHovered = ImGui::IsWindowHovered();
@@ -592,7 +593,8 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
 
     // 3. Sonsuz Izgara Cizimi (Sifir Ek Bellek Maliyetli Modulo Geometrisi)
     if (pm.showGrid) {
-        ImU32 gridCol = isLight ? IM_COL32(228, 220, 242, 255) : IM_COL32(35, 40, 50, 255);
+        // Açık tema: leylak-ametist | Koyu tema: leylak neon çizgi (derin mor zemin üstü görünür)
+        ImU32 gridCol = isLight ? IM_COL32(228, 220, 242, 255) : IM_COL32(70, 28, 120, 255);
         float gridSize = 32.0f * g_flowZoomLevel;
         float startX = fmodf(g_flowPanOffset.x, gridSize);
         if (startX < 0.0f) startX += gridSize;
@@ -790,6 +792,13 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
         std::string liveExpr = FormatNodeLiveContent(n);
         if (liveExpr.length() > 32) liveExpr = liveExpr.substr(0, 29) + "...";
 
+        // ── Metin Kırpma Kalkanı: tüm metinler şema sınırı içinde kalır ──────
+        // Parallelogram'da skew nedeniyle biraz daha geniş clip alanı bırakıyoruz
+        float clipInset = (shape == FlowchartShape::Parallelogram) ? 0.0f : 2.0f;
+        ImVec2 clipMin(pMin.x + clipInset, pMin.y + clipInset);
+        ImVec2 clipMax(pMax.x - clipInset, pMax.y - clipInset);
+        drawList->PushClipRect(clipMin, clipMax, true);
+
         // Rozet / Kategori ve Canlı İfade Çizimi
         if (shape == FlowchartShape::Diamond) {
             // BranchIf: Merkezde koşul, sağda Evet, altta Hayır
@@ -803,14 +812,14 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
             drawList->AddText(ImVec2(pMax.x - 52.0f * g_flowZoomLevel, pCenter.y - 18.0f), IM_COL32(16, 185, 129, 255), isEn ? "True" : "Evet");
             drawList->AddText(ImVec2(pCenter.x + 8.0f, pMax.y - 24.0f * g_flowZoomLevel), IM_COL32(239, 68, 68, 255), isEn ? "False" : "Hayır");
         } else if (shape == FlowchartShape::Pill) {
-            // Start / End
+            // Start / End / LoopEnd
             std::string titleStr = GetNodeLocalizedTitle(n, isEn);
             ImVec2 szTitle = ImGui::CalcTextSize(titleStr.c_str());
             drawList->AddText(ImVec2(pCenter.x - szTitle.x * 0.5f, pCenter.y - 14.0f), theme.textCol, titleStr.c_str());
             ImVec2 szExpr = ImGui::CalcTextSize(liveExpr.c_str());
             drawList->AddText(ImVec2(pCenter.x - szExpr.x * 0.5f, pCenter.y + 2.0f), theme.neonCol, liveExpr.c_str());
         } else if (shape == FlowchartShape::Hexagon) {
-            // Döngüler (While, Do-While, For): Başlık, Canlı Koşul ve Tek Çıkış Pini (Gövde)
+            // Döngüler (While, Do-While, For): Başlık + Canlı Koşul (Gövde etiketi kaldırıldı)
             float titleY = pMin.y + 7.0f * g_flowZoomLevel;
             float textIndent = 24.0f * g_flowZoomLevel;
 
@@ -818,10 +827,7 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
 
             float bodyY = pCenter.y - 4.0f * g_flowZoomLevel;
             drawList->AddText(ImVec2(pMin.x + textIndent, bodyY), theme.textCol, liveExpr.c_str());
-
-            // Gövde çıkış etiketi
-            drawList->AddText(ImVec2(pMax.x - 70.0f * g_flowZoomLevel, pCenter.y - 8.0f * g_flowZoomLevel), 
-                              IM_COL32(244, 63, 94, 255), isEn ? "Body" : "Gövde");
+            // NOT: "Gövde"/"Body" etiketi kasıtlı olarak kaldırıldı — pin zaten anlamlı.
         } else {
             // Parallelogram, Rectangle
             float titleY = pMin.y + 6.0f * g_flowZoomLevel;
@@ -838,6 +844,8 @@ void RenderFlowGraphWorkspace(ProjectManager& pm, int& selectedNodeId) {
             std::string warnStr = "[!] " + n.warningText;
             drawList->AddText(ImVec2(pMin.x + 14.0f * g_flowZoomLevel, pMax.y - 16.0f * g_flowZoomLevel), warnNeonCol, warnStr.c_str());
         }
+
+        drawList->PopClipRect(); // Metin kırpma kalkanı sonu
     }
 
     // ── ADIM 4: PINLER VE ETKİLEŞİM (YAZISIZ TEMİZ SOKETLER & ÇİFT TIK) ───
@@ -2210,37 +2218,55 @@ void ApplyAppTheme(AppTheme theme) {
         colors[ImGuiCol_SliderGrab]           = ImVec4(0.05f, 0.58f, 0.53f, 1.00f);
         colors[ImGuiCol_SliderGrabActive]     = ImVec4(0.96f, 0.62f, 0.04f, 1.00f); // Parlak Altın Sarısı
         colors[ImGuiCol_ModalWindowDimBg]     = ImVec4(0.08f, 0.12f, 0.18f, 0.45f);
-    } else { // DarkCyberNeon
+    } else { // DarkCyberNeon — "Amethyst Night" (Neon Mor + Petrol Yeşili + Altın Sarısı)
         ImGui::StyleColorsDark();
-        
-        colors[ImGuiCol_WindowBg]             = ImVec4(0.04f, 0.06f, 0.09f, 1.00f);
-        colors[ImGuiCol_ChildBg]              = ImVec4(0.06f, 0.08f, 0.12f, 1.00f);
-        colors[ImGuiCol_PopupBg]              = ImVec4(0.06f, 0.08f, 0.12f, 0.96f);
-        colors[ImGuiCol_Border]               = ImVec4(0.00f, 0.85f, 0.95f, 0.40f); // Turkuaz Neon
-        
-        colors[ImGuiCol_Text]                 = ImVec4(0.95f, 0.96f, 0.98f, 1.00f);
-        colors[ImGuiCol_TextDisabled]         = ImVec4(0.50f, 0.55f, 0.62f, 1.00f);
-        
-        colors[ImGuiCol_FrameBg]              = ImVec4(0.09f, 0.12f, 0.18f, 1.00f);
-        colors[ImGuiCol_FrameBgHovered]       = ImVec4(0.14f, 0.18f, 0.26f, 1.00f);
-        colors[ImGuiCol_FrameBgActive]        = ImVec4(0.18f, 0.24f, 0.34f, 1.00f);
-        
-        colors[ImGuiCol_TitleBg]              = ImVec4(0.05f, 0.08f, 0.14f, 1.00f);
-        colors[ImGuiCol_TitleBgActive]        = ImVec4(0.00f, 0.60f, 0.80f, 0.85f);
-        colors[ImGuiCol_MenuBarBg]            = ImVec4(0.06f, 0.08f, 0.12f, 1.00f);
-        
-        colors[ImGuiCol_Button]               = ImVec4(0.10f, 0.16f, 0.26f, 1.00f);
-        colors[ImGuiCol_ButtonHovered]        = ImVec4(0.00f, 0.85f, 0.95f, 0.70f);
-        colors[ImGuiCol_ButtonActive]         = ImVec4(0.95f, 0.15f, 0.55f, 0.80f);
-        
-        colors[ImGuiCol_Tab]                  = ImVec4(0.08f, 0.12f, 0.18f, 1.00f);
-        colors[ImGuiCol_TabHovered]           = ImVec4(0.95f, 0.15f, 0.55f, 0.65f);
-        colors[ImGuiCol_TabActive]            = ImVec4(0.95f, 0.15f, 0.55f, 1.00f); // Magenta Neon
-        
-        colors[ImGuiCol_CheckMark]            = ImVec4(0.00f, 0.95f, 0.85f, 1.00f);
-        colors[ImGuiCol_SliderGrab]           = ImVec4(0.00f, 0.85f, 0.95f, 1.00f);
-        colors[ImGuiCol_SliderGrabActive]     = ImVec4(0.95f, 0.15f, 0.55f, 1.00f);
-        colors[ImGuiCol_ModalWindowDimBg]     = ImVec4(0.00f, 0.00f, 0.00f, 0.65f);
+
+        // Zeminler: Derin Neon Mor (Amethyst Night)
+        colors[ImGuiCol_WindowBg]             = ImVec4(0.10f, 0.05f, 0.18f, 1.00f); // #1A0D2E derin mor
+        colors[ImGuiCol_ChildBg]              = ImVec4(0.13f, 0.07f, 0.22f, 1.00f); // biraz daha açık ametist
+        colors[ImGuiCol_PopupBg]              = ImVec4(0.14f, 0.07f, 0.24f, 0.97f);
+        colors[ImGuiCol_Border]               = ImVec4(0.05f, 0.75f, 0.65f, 0.55f); // Petrol yeşili neon kenarlık
+
+        colors[ImGuiCol_Text]                 = ImVec4(0.96f, 0.94f, 1.00f, 1.00f); // Lavantamsı beyaz
+        colors[ImGuiCol_TextDisabled]         = ImVec4(0.55f, 0.45f, 0.70f, 1.00f);
+
+        // Giriş Alanları
+        colors[ImGuiCol_FrameBg]              = ImVec4(0.18f, 0.09f, 0.30f, 1.00f); // Mor kadife
+        colors[ImGuiCol_FrameBgHovered]       = ImVec4(0.24f, 0.12f, 0.38f, 1.00f);
+        colors[ImGuiCol_FrameBgActive]        = ImVec4(0.30f, 0.15f, 0.46f, 1.00f);
+
+        // Başlık Çubukları
+        colors[ImGuiCol_TitleBg]              = ImVec4(0.14f, 0.06f, 0.24f, 1.00f);
+        colors[ImGuiCol_TitleBgActive]        = ImVec4(0.05f, 0.65f, 0.56f, 0.90f); // Petrol yeşili aktif başlık
+        colors[ImGuiCol_TitleBgCollapsed]     = ImVec4(0.10f, 0.05f, 0.18f, 0.75f);
+        colors[ImGuiCol_MenuBarBg]            = ImVec4(0.12f, 0.06f, 0.20f, 1.00f);
+
+        // Header
+        colors[ImGuiCol_Header]               = ImVec4(0.05f, 0.65f, 0.56f, 0.30f); // Petrol yeşili
+        colors[ImGuiCol_HeaderHovered]        = ImVec4(0.96f, 0.62f, 0.04f, 0.50f); // Altın sarısı hover
+        colors[ImGuiCol_HeaderActive]         = ImVec4(0.96f, 0.25f, 0.37f, 0.70f); // Mercan pembe aktif
+
+        // Butonlar: Mor Kadife → Altın Sarısı Hover → Mercan Pembe Aktif
+        colors[ImGuiCol_Button]               = ImVec4(0.20f, 0.09f, 0.35f, 1.00f); // Mor kadife
+        colors[ImGuiCol_ButtonHovered]        = ImVec4(0.96f, 0.62f, 0.04f, 0.90f); // Parlak altın sarısı
+        colors[ImGuiCol_ButtonActive]         = ImVec4(0.96f, 0.25f, 0.37f, 1.00f); // Mercan pembe
+
+        // Sekmeler: Mor → Altın Hover → Petrol Yeşili Aktif
+        colors[ImGuiCol_Tab]                  = ImVec4(0.15f, 0.07f, 0.26f, 1.00f);
+        colors[ImGuiCol_TabHovered]           = ImVec4(0.96f, 0.62f, 0.04f, 0.75f); // Altın sarısı
+        colors[ImGuiCol_TabActive]            = ImVec4(0.05f, 0.65f, 0.56f, 1.00f); // Petrol yeşili neon
+        colors[ImGuiCol_TabUnfocused]         = ImVec4(0.12f, 0.06f, 0.20f, 1.00f);
+        colors[ImGuiCol_TabUnfocusedActive]   = ImVec4(0.05f, 0.55f, 0.48f, 0.80f);
+
+        // Kontroller
+        colors[ImGuiCol_ScrollbarBg]          = ImVec4(0.10f, 0.05f, 0.18f, 0.60f);
+        colors[ImGuiCol_ScrollbarGrab]        = ImVec4(0.38f, 0.18f, 0.62f, 1.00f); // Leylak mor
+        colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.05f, 0.65f, 0.56f, 0.80f); // Petrol yeşili
+        colors[ImGuiCol_ScrollbarGrabActive]  = ImVec4(0.96f, 0.62f, 0.04f, 1.00f); // Altın sarısı
+        colors[ImGuiCol_CheckMark]            = ImVec4(0.05f, 0.85f, 0.72f, 1.00f); // Parlak teal
+        colors[ImGuiCol_SliderGrab]           = ImVec4(0.05f, 0.65f, 0.56f, 1.00f); // Petrol yeşili
+        colors[ImGuiCol_SliderGrabActive]     = ImVec4(0.96f, 0.62f, 0.04f, 1.00f); // Altın sarısı
+        colors[ImGuiCol_ModalWindowDimBg]     = ImVec4(0.05f, 0.02f, 0.10f, 0.70f); // Mor karartma
     }
 }
 
@@ -2333,7 +2359,7 @@ void RenderSettingsWorkspace(ProjectManager& pm) {
     ImGui::Text(isEn ? "2. Color Theme:" : "2. Arayüz Teması:");
     const char* themeNames[] = { 
         isEn ? "Light Pastel Neon (Ivory, Teal & Pink)" : "Açık Pastel Neon (Petrol Yeşili & Pembe)", 
-        isEn ? "Dark Cyberpunk Neon (Obsidian, Cyan & Magenta)" : "Koyu Cyberpunk Neon (Siyah, Turkuaz & Magenta)" 
+        isEn ? "Dark Amethyst Night (Neon Purple, Teal & Gold) — Default" : "Koyu Ametist Gece (Neon Mor, Petrol Yeşili & Altın) — Varsayılan" 
     };
     int curTheme = (int)pm.currentTheme;
     if (ImGui::Combo("##theme", &curTheme, themeNames, IM_ARRAYSIZE(themeNames))) {
@@ -2343,16 +2369,16 @@ void RenderSettingsWorkspace(ProjectManager& pm) {
     }
 
     ImGui::Spacing();
-    if (ImGui::Button(isEn ? "Açık Pastel Neon Temaya Geç (Varsayılan)" : "Açık Pastel Neon Temaya Geç (Varsayılan)", ImVec2(280, 32))) {
+    if (ImGui::Button(isEn ? "Light Pastel Neon Theme" : "Açık Pastel Neon Temaya Geç", ImVec2(260, 32))) {
         pm.currentTheme = AppTheme::LightPastelNeon;
         ApplyAppTheme(pm.currentTheme);
         pm.statusMessage = isEn ? "Switched to Light Pastel Neon theme." : "Açık Pastel Neon temaya geçildi.";
     }
     ImGui::SameLine();
-    if (ImGui::Button(isEn ? "Koyu Cyberpunk Neon Temaya Geç" : "Koyu Cyberpunk Neon Temaya Geç", ImVec2(280, 32))) {
+    if (ImGui::Button(isEn ? "Dark Amethyst Night (Default)" : "Koyu Ametist Gece (Varsayılan)", ImVec2(280, 32))) {
         pm.currentTheme = AppTheme::DarkCyberNeon;
         ApplyAppTheme(pm.currentTheme);
-        pm.statusMessage = isEn ? "Switched to Dark Cyberpunk theme." : "Koyu Cyberpunk temaya geçildi.";
+        pm.statusMessage = isEn ? "Switched to Dark Amethyst Night theme." : "Koyu Ametist Gece temasına geçildi.";
     }
 
     ImGui::Spacing();
