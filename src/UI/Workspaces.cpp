@@ -1307,70 +1307,69 @@ void RenderCodegenWorkspace(ProjectManager& pm) {
                 if (fout) {
                     fwrite(currentCode.c_str(), 1, currentCode.size(), fout);
                     fclose(fout);
+
+                    // 2. Gecici .bat dosyasina derle + calistir komutlarini yaz
+                    static char g_tempBatPath[MAX_PATH];
+                    snprintf(g_tempBatPath, MAX_PATH, "%s\\_build_run.bat", PROJECTS_DIR);
+
+                    FILE* fbat = nullptr;
+                    fopen_s(&fbat, g_tempBatPath, "w");
+                    if (!fbat) {
+                        g_buildOutput  = "[HATA] Gecici .bat dosyasi olusturulamadi!\n";
+                        g_buildRunning = false;
+                    } else {
+                        fprintf(fbat, "@echo off\r\n");
+                        fprintf(fbat, "call \"%s\" >nul 2>&1\r\n", VCVARS_PATH);
+                        if (selectedLang == 0) {
+                            fprintf(fbat, "cl.exe /nologo /std:c++17 /O1 /EHsc \"%s\" /Fe:\"%s\"\r\n", g_tempCppPath, g_tempExePath);
+                        } else {
+                            fprintf(fbat, "cl.exe /nologo /TC /O1 \"%s\" /Fe:\"%s\"\r\n", g_tempCppPath, g_tempExePath);
+                        }
+                        fclose(fbat);
+
+                        std::string runBat = std::string("cmd.exe /c \"") + g_tempBatPath + "\" 2>&1";
+
+                        g_buildOutput  = (selectedLang == 0)
+                            ? (isEn ? "=== Compiling Modern C++ (cl.exe / C++17) ===\n" : "=== Modern C++ (cl.exe / C++17) Derleniyor ===\n")
+                            : (isEn ? "=== Compiling ANSI C (cl.exe / C99) ===\n" : "=== Saf ANSI C (cl.exe / C99) Derleniyor ===\n");
+                        g_buildOutput += "Kaynak: ";
+                        g_buildOutput += g_tempCppPath;
+                        g_buildOutput += "\n\n";
+                        g_buildOutput += RunCommandCapture(runBat, g_lastBuildOk);
+
+                        // 3. Derleme basarili ise calistir
+                        if (g_lastBuildOk) {
+                            g_buildOutput += isEn
+                                ? "\n=== Build OK! Running program... ===\n"
+                                : "\n=== Derleme Basarili! Program calistiriliyor... ===\n";
+
+                            std::string runCmd = "\"" + std::string(g_tempExePath) + "\" 2>&1";
+                            FILE* runPipe = _popen(runCmd.c_str(), "r");
+                            if (runPipe) {
+                                char buf[512];
+                                int lineCount = 0;
+                                while (fgets(buf, sizeof(buf), runPipe) && lineCount < 200) {
+                                    g_buildOutput += buf;
+                                    lineCount++;
+                                }
+                                if (lineCount >= 200) {
+                                    g_buildOutput += isEn
+                                        ? "\n[UYARI] 200 satir siniri asildi — sonsuz dongu ihtimali! Durduruldu.\n"
+                                        : "\n[WARNING] 200 line limit reached — possible infinite loop! Stopped.\n";
+                                }
+                                _pclose(runPipe);
+                            }
+                        } else {
+                            g_buildOutput += isEn
+                                ? "\n[BUILD FAILED — Yukardaki derleyici hatalarini inceleyin.]\n"
+                                : "\n[DERLEME BASARISIZ — Yukardaki derleyici hatalarini inceleyin.]\n";
+                        }
+                        g_buildRunning = false;
+                    }
                 } else {
                     g_buildOutput  = "[HATA] Gecici kaynak dosyasi olusturulamadi!\n";
                     g_buildRunning = false;
-                    return;
                 }
-
-                // 2. Gecici .bat dosyasina derle + calistir komutlarini yaz
-                static char g_tempBatPath[MAX_PATH];
-                snprintf(g_tempBatPath, MAX_PATH, "%s\\_build_run.bat", PROJECTS_DIR);
-
-                FILE* fbat = nullptr;
-                fopen_s(&fbat, g_tempBatPath, "w");
-                if (!fbat) {
-                    g_buildOutput  = "[HATA] Gecici .bat dosyasi olusturulamadi!\n";
-                    g_buildRunning = false;
-                    return;
-                }
-                fprintf(fbat, "@echo off\r\n");
-                fprintf(fbat, "call \"%s\" >nul 2>&1\r\n", VCVARS_PATH);
-                if (selectedLang == 0) {
-                    fprintf(fbat, "cl.exe /nologo /std:c++17 /O1 /EHsc \"%s\" /Fe:\"%s\"\r\n", g_tempCppPath, g_tempExePath);
-                } else {
-                    fprintf(fbat, "cl.exe /nologo /TC /O1 \"%s\" /Fe:\"%s\"\r\n", g_tempCppPath, g_tempExePath);
-                }
-                fclose(fbat);
-
-                std::string runBat = std::string("cmd.exe /c \"") + g_tempBatPath + "\" 2>&1";
-
-                g_buildOutput  = (selectedLang == 0)
-                    ? (isEn ? "=== Compiling Modern C++ (cl.exe / C++17) ===\n" : "=== Modern C++ (cl.exe / C++17) Derleniyor ===\n")
-                    : (isEn ? "=== Compiling ANSI C (cl.exe / C99) ===\n" : "=== Saf ANSI C (cl.exe / C99) Derleniyor ===\n");
-                g_buildOutput += "Kaynak: ";
-                g_buildOutput += g_tempCppPath;
-                g_buildOutput += "\n\n";
-                g_buildOutput += RunCommandCapture(runBat, g_lastBuildOk);
-
-                // 3. Derleme basarili ise calistir
-                if (g_lastBuildOk) {
-                    g_buildOutput += isEn
-                        ? "\n=== Build OK! Running program... ===\n"
-                        : "\n=== Derleme Basarili! Program calistiriliyor... ===\n";
-
-                    std::string runCmd = "\"" + std::string(g_tempExePath) + "\" 2>&1";
-                    FILE* runPipe = _popen(runCmd.c_str(), "r");
-                    if (runPipe) {
-                        char buf[512];
-                        int lineCount = 0;
-                        while (fgets(buf, sizeof(buf), runPipe) && lineCount < 200) {
-                            g_buildOutput += buf;
-                            lineCount++;
-                        }
-                        if (lineCount >= 200) {
-                            g_buildOutput += isEn
-                                ? "\n[UYARI] 200 satir siniri asildi — sonsuz dongu ihtimali! Durduruldu.\n"
-                                : "\n[WARNING] 200 line limit reached — possible infinite loop! Stopped.\n";
-                        }
-                        _pclose(runPipe);
-                    }
-                } else {
-                    g_buildOutput += isEn
-                        ? "\n[BUILD FAILED — Yukardaki derleyici hatalarini inceleyin.]\n"
-                        : "\n[DERLEME BASARISIZ — Yukardaki derleyici hatalarini inceleyin.]\n";
-                }
-                g_buildRunning = false;
             }
         }
     } else {
@@ -1478,8 +1477,6 @@ void RenderCodegenWorkspace(ProjectManager& pm) {
     ImGui::BeginChild("CodegenView", ImVec2(0, codeH), true);
     ImGui::InputTextMultiline("##srcview", (char*)currentCode.c_str(), currentCode.size() + 1,
         ImVec2(-1, -1), ImGuiInputTextFlags_ReadOnly);
-    ImGui::EndChild();
-    ImGui::PopStyleColor();
     ImGui::EndChild();
     ImGui::PopStyleColor();
 
